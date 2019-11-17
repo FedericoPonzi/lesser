@@ -2,17 +2,21 @@ use memmap::Mmap;
 
 /// find the next "rows" new lines, starting from row_offset position in mmap.
 // TODO: Should cache the indexes.
-pub fn find_new_lines(mmap: &Mmap, rows: u16, row_offset: u64) -> std::io::Result<Vec<usize>> {
+pub fn find_new_lines(mmap: &Mmap, rows: u16, mut row_offset: u64) -> std::io::Result<Vec<usize>> {
     let initial_line = if row_offset == 0 && mmap.len() > 0 {
         vec![0 as usize]
     } else {
         vec![]
     };
+    // we need to take `row` lines, starting after `row_offset` lines.
+    // since row_offset get increased by row lines, but the count is 0-based, let's handle the special case when row_offset != 0:
+    let skip = if row_offset == 0 { 0 } else { row_offset - 1 };
+
     let res = mmap
         .iter()
         .enumerate()
         .filter(|(_i, c)| *c.to_owned() == b"\n"[0])
-        .skip(row_offset as usize)
+        .skip(skip as usize)
         .take(rows as usize)
         .map(|(i, _c)| i + 1 as usize);
     Ok(initial_line
@@ -30,27 +34,27 @@ pub fn read_file_paged(
     _column_offset: u64,
     rows_to_read: u16,
     columns_to_read: u16,
-) -> std::io::Result<String> {
+) -> std::io::Result<(String, usize)> {
     let indexes = find_new_lines(&memmap, rows_to_read, row_offset)?;
     let indexes_len = indexes.len();
     let mut res = "".to_owned();
     for (i, nl_index) in indexes.iter().enumerate() {
         let start = nl_index.to_owned();
-        let row_limit = if i < indexes.len() - 1 {
+        let row_limit = if i < indexes_len - 1 {
             std::cmp::min(indexes[i + 1], columns_to_read as usize)
         } else {
             columns_to_read as usize
         };
-        let end = start + row_limit;
+        let end = std::cmp::min(start + row_limit, memmap.len());
         let row = memmap.get(start as usize..end as usize).unwrap().to_owned();
         let as_string = String::from_utf8(row).unwrap().replace("\t", " "); // \t takes more then one char space. Not sure what the correct behaviour should be here.
         res.push_str(as_string.as_ref());
         if i < indexes_len - 1 {
-            res.push_str("\n\r");
+            res.push_str(&format!("\n\r",));
         }
     }
 
-    Ok(res)
+    Ok((res, indexes_len))
 }
 
 #[cfg(test)]
