@@ -1,10 +1,10 @@
 use std::fs::File;
-use std::io::{stdin, stdout, Read, Write};
+use std::io::{stdin, stdout, Write};
 use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
 
-use crate::reader::{find_new_lines, read_file_paged};
+use crate::reader::read_file_paged;
 use memmap::Mmap;
 use std::path::PathBuf;
 use termion::screen::AlternateScreen;
@@ -14,13 +14,13 @@ pub fn run(filename: Option<PathBuf>) -> std::io::Result<()> {
     let input = filename.unwrap_or_else(|| PathBuf::from("file.log"));
     let stdin = stdin();
     //TODO: ioctl invalid if run inside intellij's run.
-    let (mut cols, mut rows) = terminal_size()?; // can be improved :)
+    let (cols, rows) = terminal_size()?; // can be improved :)
 
-    let mut file = File::open(input)?;
+    let file = File::open(input)?;
     let mmap = unsafe { Mmap::map(&file).expect("failed to map the file") };
 
     let mut row_offset: u64 = 0;
-    let mut column_offset: u64 = 0;
+    let _column_offset: u64 = 0;
 
     {
         let mut screen = AlternateScreen::from(stdout()).into_raw_mode().unwrap();
@@ -31,11 +31,11 @@ pub fn run(filename: Option<PathBuf>) -> std::io::Result<()> {
         screen.flush().unwrap();
 
         for c in stdin.keys() {
-            let (mut cols, mut rows) = terminal_size()?; // can be improved :)
+            let (cols, rows) = terminal_size()?; // can be improved :)
             match c.unwrap() {
                 Key::Char('q') => break,
                 Key::Ctrl(c) => {
-                    if c.to_string() == "c".to_string() {
+                    if c.to_string().as_str() == "c" {
                         break;
                     }
                 }

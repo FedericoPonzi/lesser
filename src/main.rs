@@ -8,12 +8,6 @@ mod less;
 mod reader;
 extern crate memmap;
 
-use std::env;
-use std::fs::File;
-use std::io::{self, Write};
-
-use memmap::Mmap;
-
 #[derive(Clap)]
 #[clap(version = "0.0.1", author = "Federico Ponzi")]
 struct Opts {

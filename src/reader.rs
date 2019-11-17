@@ -1,9 +1,4 @@
 use memmap::Mmap;
-use std::fs::File;
-
-pub fn read(file: File) {
-    let mmap = unsafe { Mmap::map(&file).expect("failed to map the file") };
-}
 
 /// find the next "rows" new lines, starting from row_offset position in mmap.
 pub fn find_new_lines(mmap: &Mmap, rows: u16, row_offset: u64) -> std::io::Result<Vec<usize>> {
@@ -15,10 +10,10 @@ pub fn find_new_lines(mmap: &Mmap, rows: u16, row_offset: u64) -> std::io::Resul
     let res = mmap
         .iter()
         .enumerate()
-        .filter(|(i, c)| c.to_owned().to_owned() == b"\n"[0])
+        .filter(|(_i, c)| *c.to_owned() == b"\n"[0])
         .skip(row_offset as usize)
         .take(rows as usize)
-        .map(|(i, c)| i + 1 as usize);
+        .map(|(i, _c)| i + 1 as usize);
     Ok(initial_line
         .into_iter()
         .chain(res)
@@ -31,7 +26,7 @@ pub fn find_new_lines(mmap: &Mmap, rows: u16, row_offset: u64) -> std::io::Resul
 pub fn read_file_paged(
     memmap: &Mmap,
     row_offset: u64,
-    column_offset: u64,
+    _column_offset: u64,
     rows_to_read: u16,
     columns_to_read: u16,
 ) -> std::io::Result<String> {
