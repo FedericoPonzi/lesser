@@ -14,9 +14,10 @@ pub fn run(filename: Option<PathBuf>) -> std::io::Result<()> {
     let input = filename.unwrap_or_else(|| PathBuf::from("file.log"));
     let stdin = stdin();
     //TODO: ioctl invalid if run inside intellij's run.
-    let (cols, rows) = terminal_size()?; // can be improved :)
+    let (cols, rows) = terminal_size()?;
 
     let file = File::open(input)?;
+
     let mmap = unsafe { Mmap::map(&file).expect("failed to map the file") };
 
     let mut row_offset: u64 = 0;
@@ -24,6 +25,8 @@ pub fn run(filename: Option<PathBuf>) -> std::io::Result<()> {
 
     {
         let mut screen = AlternateScreen::from(stdout()).into_raw_mode().unwrap();
+        let mut screen = termion::cursor::HideCursor::from(screen);
+        //initial screen:
         let res = read_file_paged(&mmap, row_offset, 0, rows, cols);
         row_offset += rows as u64;
         write!(screen, "{}", termion::cursor::Goto(1, 1))?;

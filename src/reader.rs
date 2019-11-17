@@ -1,6 +1,7 @@
 use memmap::Mmap;
 
 /// find the next "rows" new lines, starting from row_offset position in mmap.
+// TODO: Should cache the indexes.
 pub fn find_new_lines(mmap: &Mmap, rows: u16, row_offset: u64) -> std::io::Result<Vec<usize>> {
     let initial_line = if row_offset == 0 && mmap.len() > 0 {
         vec![0 as usize]
@@ -41,12 +42,8 @@ pub fn read_file_paged(
             columns_to_read as usize
         };
         let end = start + row_limit;
-        /*res.push_str(&format!(
-            "Read: row: {}/{},  {} - {}, cols: {} -----------------------------------\r\n",
-            i, row_offset, start, end, columns_to_read
-        ));*/
         let row = memmap.get(start as usize..end as usize).unwrap().to_owned();
-        let as_string = String::from_utf8(row).unwrap();
+        let as_string = String::from_utf8(row).unwrap().replace("\t", " "); // \t takes more then one char space. Not sure what the correct behaviour should be here.
         res.push_str(as_string.as_ref());
         if i < indexes_len - 1 {
             res.push_str("\n\r");
@@ -71,6 +68,7 @@ mod tests {
         let expected = "f\n\rs";
         assert_eq!(expected, res);
     }
+
     #[test]
     fn test_find_new_lines() {
         let test = br#"
