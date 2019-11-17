@@ -1,0 +1,9 @@
+[package]
+name = "lesser"
+version = "0.1.0"
+authors = ["Federico Ponzi <federico.ponzi92@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+termion = "1.5.3"
+clap = { git="https://github.com/clap-rs/clap.git", version="3.0.0-beta.1" }
