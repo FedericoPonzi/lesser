@@ -68,9 +68,11 @@ mod tests {
         let mut mmap = MmapMut::map_anon(test.len()).expect("Anon mmap");
         (&mut mmap[..]).write(test).unwrap();
         let mmap = mmap.make_read_only().unwrap();
-        let res = read_file_paged(&mmap, 0, 0, 2, 1).unwrap();
+        let expected_rows = 2;
+        let (res, rows_red) = read_file_paged(&mmap, 0, 0, expected_rows, 1).unwrap();
         let expected = "f\n\rs";
         assert_eq!(expected, res);
+        assert_eq!(expected_rows as usize, rows_red)
     }
 
     #[test]
