@@ -41,7 +41,7 @@ pub fn run(filename: Option<PathBuf>) -> std::io::Result<()> {
         //initial screen:
         let (page, rows_red) = read_file_paged(&mmap, row_offset, 0, rows, cols)?;
         row_offset += rows_red as u64;
-        write_screen(&mut screen, page, rows_red);
+        write_screen(&mut screen, page, rows_red)?;
 
         screen.flush().unwrap();
         for c in stdin.keys() {
@@ -58,11 +58,12 @@ pub fn run(filename: Option<PathBuf>) -> std::io::Result<()> {
                     row_offset = std::cmp::max(min_row_offset, 0) as u64;
                     let (page, rows_red) = read_file_paged(&mmap, row_offset, 0, rows, cols)?;
                     row_offset += rows_red as u64;
-                    write_screen(&mut screen, page, rows_red);
+                    write_screen(&mut screen, page, rows_red)?;
                 }
                 _ => {
                     let (page, rows_red) = read_file_paged(&mmap, row_offset, 0, rows, cols)?;
                     row_offset += rows_red as u64;
+                    write_screen(&mut screen, page, rows_red)?;
                 }
             }
             screen.flush().unwrap();

@@ -2,7 +2,7 @@ use memmap::Mmap;
 
 /// find the next "rows" new lines, starting from row_offset position in mmap.
 // TODO: Should cache the indexes.
-pub fn find_new_lines(mmap: &Mmap, rows: u16, mut row_offset: u64) -> std::io::Result<Vec<usize>> {
+pub fn find_new_lines(mmap: &Mmap, rows: u16, row_offset: u64) -> std::io::Result<Vec<usize>> {
     let initial_line = if row_offset == 0 && mmap.len() > 0 {
         vec![0 as usize]
     } else {
