@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use termion::screen::AlternateScreen;
 use termion::terminal_size;
 pub fn write_screen(
-    screen: &mut RawTerminal<Stdout>,
+    screen: &mut RawTerminal<AlternateScreen<Stdout>>,
     page: String,
     rows_red: usize,
 ) -> std::io::Result<()> {
@@ -37,8 +37,7 @@ pub fn run(filename: Option<PathBuf>) -> std::io::Result<()> {
     let _column_offset: u64 = 0;
 
     {
-        //let screen = AlternateScreen::from(stdout()).into_raw_mode().unwrap();
-        let screen = stdout().into_raw_mode().unwrap();
+        let screen = AlternateScreen::from(stdout()).into_raw_mode().unwrap();
         let mut screen = termion::cursor::HideCursor::from(screen);
         //initial screen:
         let (page, rows_red) = paged_reader.read_file_paged(row_offset, 0, rows, cols)?;
