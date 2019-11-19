@@ -60,14 +60,12 @@ pub fn run(filename: Option<PathBuf>) -> std::io::Result<()> {
                     let (page, rows_red) =
                         paged_reader.read_file_paged(row_offset, 0, rows, cols)?;
                     row_offset += rows_red as u64;
-                    println!("row_offset: {}, rows_red: {}", row_offset, rows_red);
                     write_screen(&mut screen, page, rows_red)?;
                 }
                 _ => {
                     let (page, rows_red) =
                         paged_reader.read_file_paged(row_offset, 0, rows, cols)?;
                     row_offset += rows_red as u64;
-                    println!("row_offset: {}, rows_red: {}", row_offset, rows_red);
                     write_screen(&mut screen, page, rows_red)?;
                 }
             }
