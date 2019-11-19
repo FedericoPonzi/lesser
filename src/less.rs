@@ -4,13 +4,13 @@ use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::{IntoRawMode, RawTerminal};
 
-use crate::reader::read_file_paged;
+use crate::reader::PagedReader;
 use memmap::Mmap;
 use std::path::PathBuf;
 use termion::screen::AlternateScreen;
 use termion::terminal_size;
 pub fn write_screen(
-    screen: &mut RawTerminal<AlternateScreen<Stdout>>,
+    screen: &mut RawTerminal<Stdout>,
     page: String,
     rows_red: usize,
 ) -> std::io::Result<()> {
@@ -31,15 +31,17 @@ pub fn run(filename: Option<PathBuf>) -> std::io::Result<()> {
     let file = File::open(input)?;
 
     let mmap = unsafe { Mmap::map(&file).expect("failed to map the file") };
+    let mut paged_reader = PagedReader::new(mmap);
 
     let mut row_offset: u64 = 0;
     let _column_offset: u64 = 0;
 
     {
-        let screen = AlternateScreen::from(stdout()).into_raw_mode().unwrap();
+        //let screen = AlternateScreen::from(stdout()).into_raw_mode().unwrap();
+        let screen = stdout().into_raw_mode().unwrap();
         let mut screen = termion::cursor::HideCursor::from(screen);
         //initial screen:
-        let (page, rows_red) = read_file_paged(&mmap, row_offset, 0, rows, cols)?;
+        let (page, rows_red) = paged_reader.read_file_paged(row_offset, 0, rows, cols)?;
         row_offset += rows_red as u64;
         write_screen(&mut screen, page, rows_red)?;
 
@@ -56,13 +58,17 @@ pub fn run(filename: Option<PathBuf>) -> std::io::Result<()> {
                 Key::Up => {
                     let min_row_offset = (row_offset as i64) - (rows as i64) * 2;
                     row_offset = std::cmp::max(min_row_offset, 0) as u64;
-                    let (page, rows_red) = read_file_paged(&mmap, row_offset, 0, rows, cols)?;
+                    let (page, rows_red) =
+                        paged_reader.read_file_paged(row_offset, 0, rows, cols)?;
                     row_offset += rows_red as u64;
+                    println!("row_offset: {}, rows_red: {}", row_offset, rows_red);
                     write_screen(&mut screen, page, rows_red)?;
                 }
                 _ => {
-                    let (page, rows_red) = read_file_paged(&mmap, row_offset, 0, rows, cols)?;
+                    let (page, rows_red) =
+                        paged_reader.read_file_paged(row_offset, 0, rows, cols)?;
                     row_offset += rows_red as u64;
+                    println!("row_offset: {}, rows_red: {}", row_offset, rows_red);
                     write_screen(&mut screen, page, rows_red)?;
                 }
             }
