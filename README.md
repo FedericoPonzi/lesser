@@ -8,4 +8,4 @@ cargo run -- filename
 Move up or down with arrows, and exit with `q` or `CTRL^C`
 
 ## TODO:
-* Support column-wise navigation - e.g. move right/left
+* Support pipes

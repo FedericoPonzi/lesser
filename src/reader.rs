@@ -59,7 +59,9 @@ impl PagedReader {
                     break;
                 }
             } else if i == self.mmap.len() - 1 {
-                res.push((last, self.mmap.len()));
+                if i != 0 {
+                    res.push((last, self.mmap.len()));
+                }
             }
         }
         self.eol_indexes.extend(res);
@@ -141,9 +143,8 @@ mod tests {
     #[test]
     fn test_find_new_lines() {
         let test = br#"
-abc
-"#;
-        let expected = vec![(0, 0), (5, 8), (9, 9)];
+abc"#;
+        let expected = vec![(0, 0), (1, 4)];
 
         let mut mmap = MmapMut::map_anon(test.len()).expect("Anon mmap");
         (&mut mmap[..]).write(test).unwrap();
@@ -154,7 +155,7 @@ abc
         assert_eq!(res, expected);
 
         let no_newlines = br#""#;
-        let expected = vec![(0, 0)];
+        let expected = vec![];
         let mut mmap = MmapMut::map_anon(1).expect("Anon mmap");
         (&mut mmap[..]).write(no_newlines).unwrap();
         let mut paged_reader = PagedReader::new(mmap.make_read_only().unwrap());
