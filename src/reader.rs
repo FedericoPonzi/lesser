@@ -2,46 +2,71 @@ use memmap::Mmap;
 
 pub struct PagedReader {
     /// Starting raw index.
-    nl_index: Vec<usize>,
+    eol_indexes: Vec<(usize, usize)>,
     mmap: Mmap,
 }
 impl PagedReader {
     pub fn new(mmap: Mmap) -> PagedReader {
         PagedReader {
-            nl_index: vec![0 as usize],
+            eol_indexes: vec![],
             mmap,
         }
     }
-
+    ///TODO: correctly handle newlines only file.
     /// find the next "rows" new lines, starting from row_offset position in mmap.
-    pub fn find_new_lines(&mut self, rows: u16, row_offset: u64) -> std::io::Result<Vec<usize>> {
+    pub fn find_new_lines(
+        &mut self,
+        rows: u16,
+        row_offset: u64,
+    ) -> std::io::Result<Vec<(usize, usize)>> {
         // we need to take `row` lines, starting after `row_offset` lines.
         // since row_offset get increased by row lines, but the count is 0-based, let's handle the special case when row_offset != 0:
-        let skip = if row_offset == 0 { 0 } else { row_offset - 1 };
         let end = row_offset as usize + (rows as usize);
 
-        if row_offset as usize + (rows as usize) <= self.nl_index.len() {
+        if self.eol_indexes.len() > 0 && self.eol_indexes.last().unwrap().1 == self.mmap.len() - 1
+            || row_offset as usize + (rows as usize) <= self.eol_indexes.len()
+        {
             return Ok(self
-                .nl_index
+                .eol_indexes
                 .clone()
                 .into_iter()
-                .skip(skip as usize)
+                .skip(row_offset as usize)
                 .take(rows as usize)
                 .collect());
         }
-        let last = self.nl_index.last().unwrap().to_owned();
-        let missing_indexes = end - self.nl_index.len();
+        let last_found = self
+            .eol_indexes
+            .last()
+            .map(|(_start, finish)| finish + 1) // finish is the newline char, we need to start looking after it.
+            .unwrap_or(0)
+            .to_owned();
+        let missing_indexes = end - self.eol_indexes.len();
 
-        let res = self.mmap[last..] //start looking from the last found's nl
+        let mut res = vec![];
+        // Left side, is inclusive.
+        let mut last = last_found;
+
+        let nl = b"\n"[0];
+        for (i, c) in self.mmap[last_found..] //start looking from the lastly found nl
             .iter()
             .enumerate()
-            .filter(|(_i, c)| *c.to_owned() == b"\n"[0])
-            .take(missing_indexes)
-            .map(|(i, _c)| i + 1 + last as usize); // be sure to readd last, because self.mmap[0] points to `last`.
-                                                   // Just extend the slice
-        self.nl_index.extend(res);
-        let end = std::cmp::min(end, self.nl_index.len());
-        Ok(self.nl_index[row_offset as usize..end].to_owned())
+        {
+            if *c == nl {
+                let found = i + last_found;
+                res.push((last, found as usize));
+                last = found + 1 as usize;
+                if res.len() == missing_indexes {
+                    break;
+                }
+            } else if i == self.mmap.len() - 1 {
+                res.push((last, self.mmap.len()));
+            }
+        }
+        self.eol_indexes.extend(res);
+
+        //TODO: self.find_new_lines(rows, row_offset);
+        let end = std::cmp::min(end, self.eol_indexes.len());
+        Ok(self.eol_indexes[row_offset as usize..end].to_owned())
     }
 
     /// rows_to_read = term height
@@ -49,38 +74,45 @@ impl PagedReader {
     pub fn read_file_paged(
         &mut self,
         row_offset: u64,
-        _column_offset: u64,
+        column_offset: u64,
         rows_to_read: u16,
         columns_to_read: u16,
-    ) -> std::io::Result<(String, usize)> {
+    ) -> std::io::Result<(String, usize, usize)> {
         let indexes = self.find_new_lines(rows_to_read, row_offset)?;
         let indexes_len = indexes.len();
         let mut res = "".to_owned();
+        let mut has_text = false;
         for (i, nl_index) in indexes.iter().enumerate() {
-            let start = nl_index.to_owned();
-            // If the row length is lesser then the actual terminal width, then use the next \n as limit.
-            let row_limit = if i < indexes_len - 1 {
-                std::cmp::min(indexes[i + 1], columns_to_read as usize)
-            } else {
-                columns_to_read as usize
-            };
-            let end = std::cmp::min(start + row_limit, self.mmap.len());
-            let row = self
-                .mmap
-                .get(start as usize..end as usize)
-                .unwrap()
-                .to_owned();
+            let (start_row, end_row) = nl_index.to_owned();
 
+            let end = std::cmp::min(
+                end_row,
+                start_row + column_offset as usize + columns_to_read as usize,
+            )
+            .to_owned();
+
+            let start = std::cmp::min(start_row + column_offset as usize, end);
+
+            let row = &self.mmap[start as usize..end as usize];
+
+            //res.push_str(format!("start:{}, end:{}", start_row, end_row).as_ref());
             // \t takes more then one char space. Not sure what the correct behaviour should be here.
-            let as_string = String::from_utf8(row).unwrap().replace("\t", " ");
-
+            let as_string = String::from_utf8_lossy(row).to_string().replace("\t", " ");
+            if as_string.len() > 0 {
+                has_text = true;
+            }
             res.push_str(as_string.as_ref());
             if i < indexes_len - 1 {
                 res.push_str(&format!("\n\r",));
             }
         }
-
-        Ok((res, indexes_len))
+        // If horizontal scrolling hasn't returned any char, then won't scroll.
+        let cols_red = if has_text {
+            columns_to_read as usize
+        } else {
+            0
+        };
+        Ok((res, indexes_len, cols_red))
     }
 }
 
@@ -97,12 +129,13 @@ mod tests {
         let mmap = mmap.make_read_only().unwrap();
         let mut paged_reader = PagedReader::new(mmap);
         let expected_rows = 2;
-        let (res, rows_red) = paged_reader
+        let (res, rows_red, cols_red) = paged_reader
             .read_file_paged(0, 0, expected_rows, 1)
             .unwrap();
         let expected = "f\n\rs";
         assert_eq!(expected, res);
-        assert_eq!(expected_rows as usize, rows_red)
+        assert_eq!(expected_rows as usize, rows_red);
+        assert_eq!(1, cols_red);
     }
 
     #[test]
@@ -110,7 +143,7 @@ mod tests {
         let test = br#"
 abc
 "#;
-        let expected = vec![0, 1, 5];
+        let expected = vec![(0, 0), (5, 8), (9, 9)];
 
         let mut mmap = MmapMut::map_anon(test.len()).expect("Anon mmap");
         (&mut mmap[..]).write(test).unwrap();
@@ -121,7 +154,7 @@ abc
         assert_eq!(res, expected);
 
         let no_newlines = br#""#;
-        let expected = vec![0];
+        let expected = vec![(0, 0)];
         let mut mmap = MmapMut::map_anon(1).expect("Anon mmap");
         (&mut mmap[..]).write(no_newlines).unwrap();
         let mut paged_reader = PagedReader::new(mmap.make_read_only().unwrap());
