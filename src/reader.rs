@@ -12,7 +12,6 @@ impl PagedReader {
             mmap,
         }
     }
-    ///TODO: correctly handle newlines only file.
     /// find the next "rows" new lines, starting from row_offset position in mmap.
     pub fn find_new_lines(
         &mut self,
@@ -121,7 +120,7 @@ impl PagedReader {
 #[cfg(test)]
 mod tests {
     use crate::reader::PagedReader;
-    use memmap::{Mmap, MmapMut};
+    use memmap::MmapMut;
     use std::io::Write;
     #[test]
     fn test_read_file() {
