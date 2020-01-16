@@ -8,4 +8,5 @@ cargo run -- filename
 Move up or down with arrows, and exit with `q` or `CTRL^C`
 
 ## TODO:
+* Handle SIGWINCH signal for redrawing the screen
 * Support pipes
