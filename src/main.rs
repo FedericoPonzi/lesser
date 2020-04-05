@@ -15,6 +15,7 @@ struct Opts {
     /// name of the file to read
     filename: Option<PathBuf>,
 }
+
 fn main() {
     let opts: Opts = Opts::parse();
     run(opts.filename).unwrap();

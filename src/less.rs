@@ -1,14 +1,14 @@
+use crate::reader::PagedReader;
+use memmap::Mmap;
 use std::fs::File;
 use std::io::{stdin, stdout, Stdout, Write};
+use std::path::PathBuf;
 use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::{IntoRawMode, RawTerminal};
-
-use crate::reader::PagedReader;
-use memmap::Mmap;
-use std::path::PathBuf;
 use termion::screen::AlternateScreen;
 use termion::terminal_size;
+
 pub fn write_screen(
     screen: &mut RawTerminal<AlternateScreen<Stdout>>,
     page: String,
