@@ -1,6 +1,9 @@
 #[macro_use]
 extern crate clap;
 
+#[macro_use]
+extern crate log;
+
 use crate::less::run;
 use std::path::PathBuf;
 
@@ -18,5 +21,11 @@ struct Opts {
 
 fn main() {
     let opts: Opts = Opts::parse();
+    // Set up logging.
+    let env = env_logger::Env::new()
+        .filter("LESSER_LOG")
+        .write_style("LESSER_LOG_STYLE");
+    env_logger::init_from_env(env);
+
     run(opts.filename).unwrap();
 }
