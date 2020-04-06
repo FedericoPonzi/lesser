@@ -8,14 +8,13 @@ use crate::less::run;
 use std::path::PathBuf;
 
 mod less;
-mod reader;
 
 #[derive(Clap)]
 #[clap(version = "0.0.1", author = "Federico Ponzi")]
 struct Opts {
     #[clap(takes_value = true)]
     /// name of the file to read
-    filename: Option<PathBuf>,
+    filename: PathBuf,
 }
 
 fn main() {
