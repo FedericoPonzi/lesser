@@ -21,6 +21,5 @@ cargo run -- /path/to/filename
 ```
 
 ## TODO:
-* Handle SIGWINCH signal for redrawing the screen
 * Support pipes
 * Implement more less's functionalities.

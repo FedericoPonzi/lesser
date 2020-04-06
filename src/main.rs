@@ -9,7 +9,6 @@ use std::path::PathBuf;
 
 mod less;
 mod reader;
-extern crate memmap;
 
 #[derive(Clap)]
 #[clap(version = "0.0.1", author = "Federico Ponzi")]
@@ -27,5 +26,10 @@ fn main() {
         .write_style("LESSER_LOG_STYLE");
     env_logger::init_from_env(env);
 
-    run(opts.filename).unwrap();
+    run(opts.filename)
+        .map_err(|error| {
+            error!("Error: {}", error);
+            error
+        })
+        .unwrap();
 }

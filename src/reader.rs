@@ -25,14 +25,17 @@ impl PagedReader {
     ) -> std::io::Result<Vec<(StartIndex, EndIndex)>> {
         // we need to take `row` lines, starting after `row_offset` lines.
         // since row_offset get increased by row lines, but the count is 0-based, let's handle the special case when row_offset != 0:
-        let end = row_offset as usize + (rows as usize);
+        let to_row = row_offset as usize + (rows as usize);
         let file_is_all_read = self
             .rows_indexes
             .last()
-            .map(|(_start, end)| *end == self.mmap.len()) // even if the file is empty. mmap is at least 1.
+            .map(|(_start, end)| {
+                // if the file is empty. mmap is at least 1. But if the file is non-empty, then end and mmap.len() should match.
+                *end >= self.mmap.len() - 1
+            })
             .unwrap_or(false);
 
-        let indexes_are_known = row_offset as usize + (rows as usize) <= self.rows_indexes.len();
+        let indexes_are_known = to_row <= self.rows_indexes.len();
 
         if file_is_all_read || indexes_are_known {
             return Ok(self
@@ -43,21 +46,21 @@ impl PagedReader {
                 .take(rows as usize)
                 .collect());
         }
-
         let last_found = self
             .rows_indexes
             .last()
             .map(|(_start, end)| end + 1) // end is the newline char, we need to start looking after it.
             .unwrap_or(0)
             .to_owned();
-        let missing_indexes = end - self.rows_indexes.len();
+
+        let missing_indexes = to_row - self.rows_indexes.len();
 
         let mut res = vec![];
         // Left side, is inclusive.
         let mut last = last_found;
 
         let nl = b"\n"[0];
-        for (i, c) in self.mmap[last_found..] //start looking from the lastly found nl
+        for (i, c) in self.mmap[last_found..] // start looking from the lastly found nl
             .iter()
             .enumerate()
         {
@@ -66,7 +69,7 @@ impl PagedReader {
                 res.push((last, found as usize));
                 last = found + 1 as usize;
                 // If I've searched for enough indexes, let's defer the search of other nl for later
-                if res.len() == missing_indexes {
+                if res.len() > missing_indexes * 2 {
                     break;
                 }
             // Last line. -1 because mmap is 1 even if the file is empty.
@@ -75,7 +78,6 @@ impl PagedReader {
             }
         }
         self.rows_indexes.extend(res);
-
         self.find_new_lines(rows, row_offset)
     }
 
@@ -92,9 +94,7 @@ impl PagedReader {
         let indexes_len = indexes.len();
         let mut res = "".to_owned();
         let mut has_text = false;
-        for (i, nl_index) in indexes.iter().enumerate() {
-            let (start_row, end_row) = nl_index.to_owned();
-
+        for (i, (start_row, end_row)) in indexes.iter().cloned().enumerate() {
             let end = std::cmp::min(
                 end_row,
                 start_row + column_offset as usize + columns_to_read as usize,
@@ -108,9 +108,9 @@ impl PagedReader {
             //res.push_str(format!("start:{}, end:{}", start_row, end_row).as_ref());
             // \t takes more then one char space. Not sure what the correct behaviour should be here.
             let as_string = String::from_utf8_lossy(row).to_string().replace("\t", " ");
-            if as_string.len() > 0 {
-                has_text = true;
-            }
+
+            has_text = has_text || !as_string.is_empty();
+
             res.push_str(as_string.as_ref());
             if i < indexes_len - 1 {
                 res.push_str(&format!("\n\r",));
@@ -132,7 +132,7 @@ mod tests {
     use memmap::MmapMut;
     use std::io::Write;
     #[test]
-    fn test_read_file() {
+    fn test_read_file_columned() {
         let test = b"firsts\nsecond\nthird";
         let mut mmap = MmapMut::map_anon(test.len()).expect("Anon mmap");
         (&mut mmap[..]).write(test).unwrap();
@@ -146,6 +146,40 @@ mod tests {
         assert_eq!(expected, res);
         assert_eq!(expected_rows as usize, rows_red);
         assert_eq!(1, cols_red);
+    }
+
+    #[test]
+    fn test_read_half_file() {
+        let test = b"firsts\nsecond\nthird";
+        let mut mmap = MmapMut::map_anon(test.len()).expect("Anon mmap");
+        (&mut mmap[..]).write(test).unwrap();
+        let mmap = mmap.make_read_only().unwrap();
+        let mut paged_reader = PagedReader::new(mmap);
+        let expected_rows = 2;
+        let (res, rows_red, cols_red) = paged_reader
+            .read_file_paged(0, 0, expected_rows, 10)
+            .unwrap();
+        let expected = "firsts\n\rsecond";
+        assert_eq!(expected, res);
+        assert_eq!(expected_rows as usize, rows_red);
+        assert_eq!(10, cols_red);
+    }
+
+    #[test]
+    fn test_read_whole_file() {
+        let test = b"firsts\nsecond\nthird";
+        let mut mmap = MmapMut::map_anon(test.len()).expect("Anon mmap");
+        (&mut mmap[..]).write(test).unwrap();
+        let mmap = mmap.make_read_only().unwrap();
+        let mut paged_reader = PagedReader::new(mmap);
+        let expected_rows = 3;
+        let (res, rows_red, cols_red) = paged_reader
+            .read_file_paged(0, 0, expected_rows, 10)
+            .unwrap();
+        let expected = String::from_utf8_lossy(test).replace("\n", "\n\r");
+        assert_eq!(expected, res);
+        assert_eq!(expected_rows as usize, rows_red);
+        assert_eq!(10, cols_red);
     }
 
     #[test]
