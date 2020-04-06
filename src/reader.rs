@@ -1,14 +1,19 @@
 use memmap::Mmap;
 
+type StartIndex = usize;
+type EndIndex = usize;
+
 pub struct PagedReader {
-    /// Starting raw index.
-    eol_indexes: Vec<(usize, usize)>,
+    /// Start-end row indexes. A row is delimited by an EOL char.
+    /// This vector referes to the file, so it's independent from the screen-size.
+    rows_indexes: Vec<(StartIndex, EndIndex)>,
     mmap: Mmap,
 }
+
 impl PagedReader {
     pub fn new(mmap: Mmap) -> PagedReader {
         PagedReader {
-            eol_indexes: vec![],
+            rows_indexes: vec![],
             mmap,
         }
     }
@@ -17,29 +22,35 @@ impl PagedReader {
         &mut self,
         rows: u16,
         row_offset: u64,
-    ) -> std::io::Result<Vec<(usize, usize)>> {
+    ) -> std::io::Result<Vec<(StartIndex, EndIndex)>> {
         // we need to take `row` lines, starting after `row_offset` lines.
         // since row_offset get increased by row lines, but the count is 0-based, let's handle the special case when row_offset != 0:
         let end = row_offset as usize + (rows as usize);
+        let file_is_all_read = self
+            .rows_indexes
+            .last()
+            .map(|(_start, end)| *end == self.mmap.len()) // even if the file is empty. mmap is at least 1.
+            .unwrap_or(false);
 
-        if self.eol_indexes.len() > 0 && self.eol_indexes.last().unwrap().1 == self.mmap.len() - 1
-            || row_offset as usize + (rows as usize) <= self.eol_indexes.len()
-        {
+        let indexes_are_known = row_offset as usize + (rows as usize) <= self.rows_indexes.len();
+
+        if file_is_all_read || indexes_are_known {
             return Ok(self
-                .eol_indexes
+                .rows_indexes
                 .clone()
                 .into_iter()
                 .skip(row_offset as usize)
                 .take(rows as usize)
                 .collect());
         }
+
         let last_found = self
-            .eol_indexes
+            .rows_indexes
             .last()
-            .map(|(_start, finish)| finish + 1) // finish is the newline char, we need to start looking after it.
+            .map(|(_start, end)| end + 1) // end is the newline char, we need to start looking after it.
             .unwrap_or(0)
             .to_owned();
-        let missing_indexes = end - self.eol_indexes.len();
+        let missing_indexes = end - self.rows_indexes.len();
 
         let mut res = vec![];
         // Left side, is inclusive.
@@ -54,20 +65,18 @@ impl PagedReader {
                 let found = i + last_found;
                 res.push((last, found as usize));
                 last = found + 1 as usize;
+                // If I've searched for enough indexes, let's defer the search of other nl for later
                 if res.len() == missing_indexes {
                     break;
                 }
+            // Last line. -1 because mmap is 1 even if the file is empty.
             } else if i == self.mmap.len() - 1 {
-                if i != 0 {
-                    res.push((last, self.mmap.len()));
-                }
+                res.push((last, self.mmap.len()));
             }
         }
-        self.eol_indexes.extend(res);
+        self.rows_indexes.extend(res);
 
-        //TODO: self.find_new_lines(rows, row_offset);
-        let end = std::cmp::min(end, self.eol_indexes.len());
-        Ok(self.eol_indexes[row_offset as usize..end].to_owned())
+        self.find_new_lines(rows, row_offset)
     }
 
     /// rows_to_read = term height
@@ -154,7 +163,7 @@ abc"#;
         assert_eq!(res, expected);
 
         let no_newlines = br#""#;
-        let expected = vec![];
+        let expected = vec![(0, 1)];
         let mut mmap = MmapMut::map_anon(1).expect("Anon mmap");
         (&mut mmap[..]).write(no_newlines).unwrap();
         let mut paged_reader = PagedReader::new(mmap.make_read_only().unwrap());
