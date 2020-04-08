@@ -19,9 +19,7 @@ mod reader;
 mod screen_move_handler;
 
 fn read_from_pipe(screen: &mut RawTerminal<AlternateScreen<Stdout>>) -> Mmap {
-    let (_cols, mut rows) = terminal_size().unwrap_or_else(|_| (80, 80));
-
-    let (sender, receiver) = crossbeam_channel::unbounded();
+    //let (sender, receiver) = crossbeam_channel::unbounded();
     let tempdir = tempdir::TempDir::new("lesser").expect("Tempdir");
     let path: PathBuf = tempdir.path().join("map_mut");
     let mut file = OpenOptions::new()
@@ -31,9 +29,21 @@ fn read_from_pipe(screen: &mut RawTerminal<AlternateScreen<Stdout>>) -> Mmap {
         .open(&path)
         .expect("Create file");
 
-    spawn_stdin_handler(sender);
-    for str_buf in receiver {
-        file.write(str_buf.as_bytes()).expect("Write file");
+    let mut stdin = stdin();
+    loop {
+        let mut buffer = String::new();
+        match stdin.read_to_string(&mut buffer) {
+            Ok(read_len) => {
+                if read_len == 0 {
+                    break;
+                }
+                file.write(buffer.as_bytes()).expect("Write file");
+            }
+            Err(error) => {
+                eprintln!("Error: {:?}", error);
+                break;
+            }
+        }
     }
     file.flush().expect("flush");
     let mut mmap = unsafe { MmapMut::map_mut(&file).expect("Mmmap") };
@@ -104,24 +114,7 @@ fn spawn_signal_handler(sender: Sender<Message>) {
     });
 }
 
-fn spawn_stdin_handler(sender: Sender<String>) {
-    let mut stdin = stdin();
-    loop {
-        let mut buffer = String::new();
-        match stdin.read_to_string(&mut buffer) {
-            Ok(read_len) => {
-                if read_len == 0 {
-                    return;
-                }
-                sender.send(buffer).unwrap();
-            }
-            Err(error) => {
-                eprintln!("Error: {:?}", error);
-                break;
-            }
-        }
-    }
-}
+fn spawn_stdin_handler(sender: Sender<String>) {}
 
 fn spawn_key_pressed_handler(sender: Sender<Message>) {
     thread::spawn(move || {
