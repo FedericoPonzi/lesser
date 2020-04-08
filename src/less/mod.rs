@@ -5,7 +5,7 @@ use crossbeam_channel::Sender;
 use memmap::{Mmap, MmapMut};
 use signal_hook::{iterator::Signals, SIGINT, SIGWINCH};
 use std::fs::{File, OpenOptions};
-use std::io::{stdin, stdout, Stdout, Write};
+use std::io::{stdin, stdout, Read, Stdout, Write};
 use std::path::PathBuf;
 use std::{fs, thread};
 use termion::event::Key;
@@ -19,7 +19,6 @@ mod reader;
 mod screen_move_handler;
 
 fn read_from_pipe(screen: &mut RawTerminal<AlternateScreen<Stdout>>) -> Mmap {
-    //fn read_from_pipe() -> Mmap {
     let (_cols, mut rows) = terminal_size().unwrap_or_else(|_| (80, 80));
 
     let (sender, receiver) = crossbeam_channel::unbounded();
@@ -33,13 +32,8 @@ fn read_from_pipe(screen: &mut RawTerminal<AlternateScreen<Stdout>>) -> Mmap {
         .expect("Create file");
 
     spawn_stdin_handler(sender);
-    for line in receiver {
-        file.write(line.as_bytes()).expect("Write file");
-        //print!("{}", line);
-        if rows > 0 {
-            rows -= 1;
-            write_line(screen, Some(line)).unwrap();
-        }
+    for str_buf in receiver {
+        file.write(str_buf.as_bytes()).expect("Write file");
     }
     file.flush().expect("flush");
     let mut mmap = unsafe { MmapMut::map_mut(&file).expect("Mmmap") };
@@ -111,10 +105,10 @@ fn spawn_signal_handler(sender: Sender<Message>) {
 }
 
 fn spawn_stdin_handler(sender: Sender<String>) {
-    let stdin = stdin();
+    let mut stdin = stdin();
     loop {
         let mut buffer = String::new();
-        match stdin.read_line(&mut buffer) {
+        match stdin.read_to_string(&mut buffer) {
             Ok(read_len) => {
                 if read_len == 0 {
                     return;
