@@ -14,7 +14,7 @@ mod less;
 struct Opts {
     #[clap(takes_value = true)]
     /// name of the file to read
-    filename: PathBuf,
+    filename: Option<PathBuf>,
 }
 
 fn main() {
