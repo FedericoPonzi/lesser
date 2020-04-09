@@ -56,7 +56,7 @@ impl ScreenMoveHandler {
         Ok(ret)
     }
 
-    pub(crate) fn move_left(&mut self, rows: u16, cols: u16) -> Result<ScreenToWrite> {
+    pub(crate) fn move_left_page(&mut self, rows: u16, cols: u16) -> Result<ScreenToWrite> {
         debug!("Received move left request");
         // I need to read not from the beginning of this page, but from the beginning of the last page. Thus * 2.
         let min_col_offset = (self.col_offset as i64) - (cols as i64) * 2;
@@ -65,7 +65,7 @@ impl ScreenMoveHandler {
         self.move_x(rows, cols)
     }
 
-    pub(crate) fn move_right(&mut self, rows: u16, cols: u16) -> Result<ScreenToWrite> {
+    pub(crate) fn move_right_page(&mut self, rows: u16, cols: u16) -> Result<ScreenToWrite> {
         debug!("Received move right request");
 
         self.move_x(rows, cols)
@@ -83,7 +83,7 @@ impl ScreenMoveHandler {
         Ok(ret)
     }
 
-    pub(crate) fn move_up(&mut self, rows: u16, cols: u16) -> Result<ScreenToWrite> {
+    pub(crate) fn move_up_page(&mut self, rows: u16, cols: u16) -> Result<ScreenToWrite> {
         debug!("Received move up request");
 
         // I need to read not from the beginning of this page, but from the beginning of the last page. Thus * 2.
@@ -92,7 +92,7 @@ impl ScreenMoveHandler {
         self.move_y(rows, cols)
     }
 
-    pub(crate) fn move_down(&mut self, rows: u16, cols: u16) -> Result<ScreenToWrite> {
+    pub(crate) fn move_down_page(&mut self, rows: u16, cols: u16) -> Result<ScreenToWrite> {
         debug!("Received move down request");
         self.move_y(rows, cols)
     }

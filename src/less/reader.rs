@@ -21,6 +21,8 @@ impl PagedReader {
 
     /// rows_to_read = term height
     /// columns_to_read = term width
+    /// Returns a page. Will start reading from row_offset / column offset and will read
+    /// rows_to_read rows, and columns_to_read columns.
     pub fn read_file_paged(
         &mut self,
         row_offset: u64,
@@ -41,10 +43,11 @@ impl PagedReader {
 
             let start = std::cmp::min(start_row + column_offset as usize, end);
 
-            let row = &self.mmap[start as usize..end as usize];
+            let row = &self.mmap[start..end];
 
             //res.push_str(format!("start:{}, end:{}", start_row, end_row).as_ref());
             // \t takes more then one char space. Not sure what the correct behaviour should be here.
+            // TODO: this should be configurable, and default to 4.
             let as_string = String::from_utf8_lossy(row).to_string().replace("\t", " ");
 
             has_text = has_text || !as_string.is_empty();
@@ -60,6 +63,7 @@ impl PagedReader {
         } else {
             0
         };
+        //TODO: indexes_len = rows_red
         Ok((res, indexes_len, cols_red))
     }
 

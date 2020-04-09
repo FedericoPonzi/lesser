@@ -56,12 +56,16 @@ pub fn run(filename: Option<PathBuf>) -> std::io::Result<()> {
     'main_loop: for message in receiver {
         let (cols, rows) = terminal_size().unwrap_or_else(|_| (80, 80));
         let page = match message {
-            Message::ScrollUpPage => screen_move_handler.move_up(rows, cols)?,
-            Message::ScrollLeftPage => screen_move_handler.move_left(rows, cols)?,
-            Message::ScrollRightPage => screen_move_handler.move_right(rows, cols)?,
-            Message::ScrollDownPage => screen_move_handler.move_down(rows, cols)?,
+            Message::ScrollUpPage => screen_move_handler.move_up_page(rows, cols)?,
+            Message::ScrollLeftPage => screen_move_handler.move_left_page(rows, cols)?,
+            Message::ScrollRightPage => screen_move_handler.move_right_page(rows, cols)?,
+            Message::ScrollDownPage => screen_move_handler.move_down_page(rows, cols)?,
             Message::Reload => screen_move_handler.reload(rows, cols)?,
             Message::Exit => break 'main_loop,
+            _ => {
+                debug!("Message unimplemented: {:?}", message);
+                screen_move_handler.move_down_page(rows, cols)?
+            }
         };
         write_screen(&mut screen, page)?;
     }
@@ -121,6 +125,11 @@ fn spawn_key_pressed_handler(sender: Sender<Message>) {
                 Key::Left => Message::ScrollLeftPage,
                 Key::Right => Message::ScrollRightPage,
                 Key::Up => Message::ScrollUpPage,
+                Key::PageUp => Message::ScrollUpPage,
+                Key::PageDown => Message::ScrollDownPage,
+                Key::Char('j') => Message::ScrollDown,
+                Key::Char('k') => Message::ScrollUp,
+
                 // Goes down by default.
                 _ => Message::ScrollDownPage,
             };
