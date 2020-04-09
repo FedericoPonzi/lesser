@@ -24,11 +24,7 @@ fn main() {
         .filter("LESSER_LOG")
         .write_style("LESSER_LOG_STYLE");
     env_logger::init_from_env(env);
-
-    run(opts.filename)
-        .map_err(|error| {
-            error!("Error: {}", error);
-            error
-        })
-        .unwrap();
+    if let Err(error) = run(opts.filename) {
+        eprintln!("Error: {}", error);
+    };
 }

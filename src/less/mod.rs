@@ -5,7 +5,7 @@ use crossbeam_channel::Sender;
 use memmap::{Mmap, MmapMut};
 use signal_hook::{iterator::Signals, SIGINT, SIGWINCH};
 use std::fs::{File, OpenOptions};
-use std::io::{stdin, stdout, Read, Stdout, Write};
+use std::io::{stdin, stdout, ErrorKind, Stdout, Write};
 use std::path::PathBuf;
 use std::{fs, thread};
 use termion::event::Key;
@@ -17,38 +17,6 @@ use termion::{is_tty, terminal_size};
 mod formats;
 mod reader;
 mod screen_move_handler;
-
-fn read_from_pipe(screen: &mut RawTerminal<AlternateScreen<Stdout>>) -> Mmap {
-    //let (sender, receiver) = crossbeam_channel::unbounded();
-    let tempdir = tempdir::TempDir::new("lesser").expect("Tempdir");
-    let path: PathBuf = tempdir.path().join("map_mut");
-    let mut file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .open(&path)
-        .expect("Create file");
-
-    let mut stdin = stdin();
-    loop {
-        let mut buffer = String::new();
-        match stdin.read_to_string(&mut buffer) {
-            Ok(read_len) => {
-                if read_len == 0 {
-                    break;
-                }
-                file.write(buffer.as_bytes()).expect("Write file");
-            }
-            Err(error) => {
-                eprintln!("Error: {:?}", error);
-                break;
-            }
-        }
-    }
-    file.flush().expect("flush");
-    let mut mmap = unsafe { MmapMut::map_mut(&file).expect("Mmmap") };
-    mmap.make_read_only().expect("Readonly")
-}
 
 pub fn run(filename: Option<PathBuf>) -> std::io::Result<()> {
     let screen = AlternateScreen::from(stdout()).into_raw_mode().unwrap();
@@ -66,11 +34,13 @@ pub fn run(filename: Option<PathBuf>) -> std::io::Result<()> {
         }
     } else {
         if !is_tty(&stdin()) {
-            read_from_pipe(&mut screen)
+            read_all_from_pipe()
         } else {
-            unimplemented!();
-            MmapMut::map_anon(1).expect("Anon mmap").make_read_only()?
-            // TODO: Error, must specify an input!
+            // Error, must specify an input!
+            return Err(std::io::Error::new(
+                ErrorKind::InvalidInput,
+                "Missing filename (\"lesser --help\" for help)",
+            ));
         }
     };
 
@@ -114,7 +84,20 @@ fn spawn_signal_handler(sender: Sender<Message>) {
     });
 }
 
-fn spawn_stdin_handler(sender: Sender<String>) {}
+fn read_all_from_pipe() -> Mmap {
+    //let (sender, receiver) = crossbeam_channel::unbounded();
+    let tempdir = tempdir::TempDir::new("lesser").expect("Tempdir");
+    let path: PathBuf = tempdir.path().join("map_mut");
+    let mut file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(&path)
+        .expect("Create file");
+    let mut stdin = stdin();
+    std::io::copy(&mut stdin, &mut file).expect("copy pipe input");
+    unsafe { Mmap::map(&file).expect("mmap") }
+}
 
 fn spawn_key_pressed_handler(sender: Sender<Message>) {
     thread::spawn(move || {
@@ -155,17 +138,6 @@ fn write_screen(
         write!(screen, "{}", termion::clear::All)?;
         write!(screen, "{}", termion::cursor::Goto(1, 1))?;
         write!(screen, "{}", page)?;
-    }
-    screen.flush().expect("Failed to flush");
-    Ok(())
-}
-
-fn write_line(
-    screen: &mut RawTerminal<AlternateScreen<Stdout>>,
-    line: Option<String>,
-) -> std::io::Result<()> {
-    if let Some(line) = line {
-        write!(screen, "{}", line)?;
     }
     screen.flush().expect("Failed to flush");
     Ok(())
