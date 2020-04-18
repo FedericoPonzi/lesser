@@ -1,7 +1,7 @@
 use crate::less::reader::PagedReader;
 use std::io::Result;
 
-type ScreenToWrite = Option<String>;
+type PageToPrint = Option<String>;
 
 pub struct ScreenMoveHandler {
     row_offset: u64,
@@ -18,8 +18,20 @@ impl ScreenMoveHandler {
         }
     }
 
+    /// Move left one column
+    // TODO
+    pub(crate) fn move_left() -> Result<PageToPrint> {
+        unimplemented!()
+    }
+
+    /// Move right one column
+    // TODO
+    pub(crate) fn move_right() -> Result<PageToPrint> {
+        unimplemented!()
+    }
+
     /// Doesn't trigger any movement, just rereads the current screen.
-    pub(crate) fn reload(&mut self, rows: u16, cols: u16) -> Result<ScreenToWrite> {
+    pub(crate) fn reload(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
         // reset the index back to the start of the line:
         self.col_offset = 0;
         // Re read this page:
@@ -35,8 +47,8 @@ impl ScreenMoveHandler {
         let ret = if rows_red > 0 { Some(page) } else { None };
         Ok(ret)
     }
-
-    pub(crate) fn initial_screen(&mut self, rows: u16, cols: u16) -> Result<ScreenToWrite> {
+    /// The first page
+    pub(crate) fn initial_screen(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
         let (page, rows_red, cols_red) = self.paged_reader.read_file_paged(0, 0, rows, cols)?;
         self.row_offset += rows_red as u64;
         self.col_offset += cols_red as u64;
@@ -45,7 +57,7 @@ impl ScreenMoveHandler {
     }
 
     // X axis:
-    fn move_x(&mut self, rows: u16, cols: u16) -> Result<ScreenToWrite> {
+    fn move_x(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
         let fixed_row_offset = std::cmp::max((self.row_offset as i64) - (rows as i64), 0) as u64;
 
         let (page, _rows_red, cols_red) =
@@ -56,7 +68,7 @@ impl ScreenMoveHandler {
         Ok(ret)
     }
 
-    pub(crate) fn move_left_page(&mut self, rows: u16, cols: u16) -> Result<ScreenToWrite> {
+    pub(crate) fn move_left_page(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
         debug!("Received move left request");
         // I need to read not from the beginning of this page, but from the beginning of the last page. Thus * 2.
         let min_col_offset = (self.col_offset as i64) - (cols as i64) * 2;
@@ -65,7 +77,7 @@ impl ScreenMoveHandler {
         self.move_x(rows, cols)
     }
 
-    pub(crate) fn move_right_page(&mut self, rows: u16, cols: u16) -> Result<ScreenToWrite> {
+    pub(crate) fn move_right_page(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
         debug!("Received move right request");
 
         self.move_x(rows, cols)
@@ -73,7 +85,7 @@ impl ScreenMoveHandler {
 
     // Y axis:
 
-    fn move_y(&mut self, rows: u16, cols: u16) -> Result<ScreenToWrite> {
+    fn move_y(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
         let fixed_col_offset = std::cmp::max((self.col_offset as i64) - (cols as i64), 0) as u64;
         let (page, rows_red, _cols_red) =
             self.paged_reader
@@ -83,7 +95,7 @@ impl ScreenMoveHandler {
         Ok(ret)
     }
 
-    pub(crate) fn move_up_page(&mut self, rows: u16, cols: u16) -> Result<ScreenToWrite> {
+    pub(crate) fn move_up_page(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
         debug!("Received move up request");
 
         // I need to read not from the beginning of this page, but from the beginning of the last page. Thus * 2.
@@ -92,7 +104,7 @@ impl ScreenMoveHandler {
         self.move_y(rows, cols)
     }
 
-    pub(crate) fn move_down_page(&mut self, rows: u16, cols: u16) -> Result<ScreenToWrite> {
+    pub(crate) fn move_down_page(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
         debug!("Received move down request");
         self.move_y(rows, cols)
     }

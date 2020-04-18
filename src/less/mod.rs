@@ -88,6 +88,7 @@ fn spawn_signal_handler(sender: Sender<Message>) {
     });
 }
 
+/// TODO: reading everything from the pipe is easy but not smart / efficient.
 fn read_all_from_pipe() -> Mmap {
     //let (sender, receiver) = crossbeam_channel::unbounded();
     let tempdir = tempdir::TempDir::new("lesser").expect("Tempdir");
@@ -147,7 +148,7 @@ fn write_screen(
         write!(screen, "{}", termion::clear::All)?;
         write!(screen, "{}", termion::cursor::Goto(1, 1))?;
         write!(screen, "{}", page)?;
+        screen.flush().expect("Failed to flush");
     }
-    screen.flush().expect("Failed to flush");
     Ok(())
 }
