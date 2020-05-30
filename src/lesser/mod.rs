@@ -32,22 +32,20 @@ pub fn run(filename: Option<PathBuf>) -> std::io::Result<()> {
         } else {
             MmapMut::map_anon(1).expect("Anon mmap").make_read_only()?
         }
+    } else if !is_tty(&stdin()) {
+        read_all_from_pipe()
     } else {
-        if !is_tty(&stdin()) {
-            read_all_from_pipe()
-        } else {
-            // Error, must specify an input!
-            return Err(std::io::Error::new(
-                ErrorKind::InvalidInput,
-                "Missing filename (\"lesser --help\" for help)",
-            ));
-        }
+        // Error, must specify an input!
+        return Err(std::io::Error::new(
+            ErrorKind::InvalidInput,
+            "Missing filename (\"lesser --help\" for help)",
+        ));
     };
 
     let paged_reader = PagedReader::new(mmap);
     let mut screen_move_handler: ScreenMoveHandler = ScreenMoveHandler::new(paged_reader);
     spawn_key_pressed_handler(sender.clone());
-    spawn_signal_handler(sender.clone());
+    spawn_signal_handler(sender);
     let (cols, rows) = terminal_size().unwrap_or_else(|_| (80, 80));
 
     let initial_screen = screen_move_handler.initial_screen(rows, cols)?;

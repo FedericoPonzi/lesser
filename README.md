@@ -41,5 +41,6 @@ You need to redirect stderr to some file, otherwise the content of the file will
 
 
 ## TODO:
-* Implement more less's [functionalities](https://en.wikipedia.org/wiki/Less_(Unix)#Frequently_used_commands).
+* Ignore the new line at the end of the file (if there is any).
 * If the output is redirected to anything other than a terminal, for example a pipe to another command, less behaves like cat. 
+* Implement more less's [functionalities](https://en.wikipedia.org/wiki/Less_(Unix)#Frequently_used_commands).

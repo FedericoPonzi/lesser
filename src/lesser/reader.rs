@@ -54,7 +54,7 @@ impl PagedReader {
 
             res.push_str(as_string.as_ref());
             if i < indexes_len - 1 {
-                res.push_str(&format!("\n\r",));
+                res.push_str("\n\r");
             }
         }
         // If horizontal scrolling hasn't returned any char, then won't scroll.

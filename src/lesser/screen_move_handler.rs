@@ -92,14 +92,15 @@ impl ScreenMoveHandler {
         // This is used to avoid going back one screen if the move_x has returnend None
         // (e.g it hasn't read anything).
         let old_offset = self.col_offset;
-        self.col_offset = (self.col_offset as i64 - (cols - 1) as i64) as u64;// - cols as i64) as u64;
+        self.col_offset = (self.col_offset as i64 - (cols - 1) as i64) as u64; // - cols as i64) as u64;
         let ret = self.move_x(rows, cols);
-        ret.iter().for_each(|opt|if opt.is_none() && old_offset != self.col_offset{
-            self.col_offset = old_offset;
+        ret.iter().for_each(|opt| {
+            if opt.is_none() && old_offset != self.col_offset {
+                self.col_offset = old_offset;
+            }
         });
         ret
     }
-
 
     // Y axis:
 
@@ -127,7 +128,7 @@ impl ScreenMoveHandler {
     }
     pub(crate) fn move_up(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
         debug!("Received move up request");
-        let min_row_offset = (self.row_offset as i64) - ((rows + 1)  as i64);
+        let min_row_offset = (self.row_offset as i64) - ((rows + 1) as i64);
         self.row_offset = std::cmp::max(min_row_offset, 0) as u64;
         self.move_y(rows, cols)
     }
@@ -137,10 +138,12 @@ impl ScreenMoveHandler {
         // This is used to avoid going back one screen if the move_x has returnend None
         // (e.g it hasn't read anything).
         let old_offset = self.row_offset;
-        self.row_offset = (self.row_offset as i64 - (rows - 1) as i64) as u64;// - cols as i64) as u64;
-        let ret =  self.move_y(rows, cols);
-        ret.iter().for_each(|opt|if opt.is_none() && old_offset != self.col_offset{
-            self.row_offset = old_offset;
+        self.row_offset = (self.row_offset as i64 - (rows - 1) as i64) as u64; // - cols as i64) as u64;
+        let ret = self.move_y(rows, cols);
+        ret.iter().for_each(|opt| {
+            if opt.is_none() && old_offset != self.col_offset {
+                self.row_offset = old_offset;
+            }
         });
         ret
     }
