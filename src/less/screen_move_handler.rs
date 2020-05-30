@@ -4,7 +4,9 @@ use std::io::Result;
 type PageToPrint = Option<String>;
 
 pub struct ScreenMoveHandler {
+    /// Row-wise position currently displayed
     row_offset: u64,
+    /// Column-wise position currently displayed
     col_offset: u64,
     paged_reader: PagedReader,
 }
@@ -19,15 +21,27 @@ impl ScreenMoveHandler {
     }
 
     /// Move left one column
-    // TODO
-    pub(crate) fn move_left() -> Result<PageToPrint> {
-        unimplemented!()
+    pub(crate) fn move_left(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
+        debug!("Received move right request");
+        // I need to read not from the beginning of this page, but from the beginning of the last page. Thus * 2.
+        let min_col_offset = (self.col_offset as i64) - ((cols + 1) as i64);
+        // we're not moving by rows:
+        self.col_offset = std::cmp::max(min_col_offset, 0) as u64;
+        self.move_x(rows, cols)
     }
 
     /// Move right one column
-    // TODO
-    pub(crate) fn move_right() -> Result<PageToPrint> {
-        unimplemented!()
+    pub(crate) fn move_right(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
+        debug!("Received move right request");
+        // This is used to avoid going back one screen if the move_x has returnend None
+        // (e.g it hasn't read anything).
+        let old_offset = self.col_offset;
+        self.col_offset = (self.col_offset as i64 - (cols - 1) as i64) as u64;// - cols as i64) as u64;
+        let ret = self.move_x(rows, cols);
+        ret.iter().for_each(|opt|if opt.is_none() && old_offset != self.col_offset{
+            self.col_offset = old_offset;
+        });
+        ret
     }
 
     /// Doesn't trigger any movement, just rereads the current screen.
@@ -56,8 +70,10 @@ impl ScreenMoveHandler {
         Ok(ret)
     }
 
-    // X axis:
+    // X axis: read the page and moves the col offset position
+    // from self.col_offset to self.col_offset+ cols_red.
     fn move_x(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
+        // Re read the same rows
         let fixed_row_offset = std::cmp::max((self.row_offset as i64) - (rows as i64), 0) as u64;
 
         let (page, _rows_red, cols_red) =
@@ -69,16 +85,17 @@ impl ScreenMoveHandler {
     }
 
     pub(crate) fn move_left_page(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
-        debug!("Received move left request");
+        debug!("Received move left page request");
         // I need to read not from the beginning of this page, but from the beginning of the last page. Thus * 2.
         let min_col_offset = (self.col_offset as i64) - (cols as i64) * 2;
         // we're not moving by rows:
         self.col_offset = std::cmp::max(min_col_offset, 0) as u64;
         self.move_x(rows, cols)
     }
-
+    ///
+    /// rows, cols: size of the current terminal.
     pub(crate) fn move_right_page(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
-        debug!("Received move right request");
+        debug!("Received move right page request");
 
         self.move_x(rows, cols)
     }
