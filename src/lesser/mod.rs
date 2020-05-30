@@ -62,12 +62,10 @@ pub fn run(filename: Option<PathBuf>) -> std::io::Result<()> {
             Message::ScrollDownPage => screen_move_handler.move_down_page(rows, cols)?,
             Message::ScrollLeft => screen_move_handler.move_left(rows, cols)?,
             Message::ScrollRight => screen_move_handler.move_right(rows, cols)?,
+            Message::ScrollUp => screen_move_handler.move_up(rows, cols)?,
+            Message::ScrollDown => screen_move_handler.move_down(rows, cols)?,
             Message::Reload => screen_move_handler.reload(rows, cols)?,
             Message::Exit => break,
-            _ => {
-                debug!("Message unimplemented: {:?}", message);
-                screen_move_handler.move_down_page(rows, cols)?
-            }
         };
         write_screen(&mut screen, page)?;
     }

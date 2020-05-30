@@ -18,8 +18,8 @@ cat file | lesser
 ### Commands:
  * h: move left one column
  * l: move right one column
- * j: move down one page
- * k: move up one page
+ * j: move down one row
+ * k: move up one row
  * Down arrow: Move down one page
  * Up arrow: Move up one page
  * Left arrow: Move left one page
