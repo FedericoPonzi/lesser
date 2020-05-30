@@ -4,10 +4,10 @@ extern crate clap;
 #[macro_use]
 extern crate log;
 
-use crate::less::run;
+use crate::lesser::run;
 use std::path::PathBuf;
 
-mod less;
+mod lesser;
 
 #[derive(Clap)]
 #[clap(version = "0.0.1", author = "Federico Ponzi")]

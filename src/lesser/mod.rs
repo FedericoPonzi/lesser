@@ -1,6 +1,6 @@
-use crate::less::formats::Message;
-use crate::less::reader::PagedReader;
-use crate::less::screen_move_handler::ScreenMoveHandler;
+use crate::lesser::formats::Message;
+use crate::lesser::reader::PagedReader;
+use crate::lesser::screen_move_handler::ScreenMoveHandler;
 use crossbeam_channel::Sender;
 use memmap::{Mmap, MmapMut};
 use signal_hook::{iterator::Signals, SIGINT, SIGWINCH};
@@ -130,8 +130,8 @@ fn spawn_key_pressed_handler(sender: Sender<Message>) {
                 Key::PageUp => Message::ScrollUpPage,
                 Key::PageDown => Message::ScrollDownPage,
                 Key::Char('h') => Message::ScrollLeft,
-                Key::Char('j') => Message::ScrollDownPage,
-                Key::Char('k') => Message::ScrollUpPage,
+                Key::Char('j') => Message::ScrollDown,
+                Key::Char('k') => Message::ScrollUp,
                 Key::Char('l') => Message::ScrollRight,
 
                 // Goes down by default.
@@ -151,7 +151,9 @@ fn write_screen(
         write!(screen, "{}", termion::clear::All)?;
         write!(screen, "{}", termion::cursor::Goto(1, 1))?;
         write!(screen, "{}", page)?;
-        screen.flush().expect("Failed to flush");
+    } else {
+        write!(screen, "\x07")?;
     }
+    screen.flush().expect("Failed to flush");
     Ok(())
 }

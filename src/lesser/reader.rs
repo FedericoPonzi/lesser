@@ -135,7 +135,7 @@ impl PagedReader {
 
 #[cfg(test)]
 mod tests {
-    use crate::less::reader::PagedReader;
+    use crate::lesser::reader::PagedReader;
     use memmap::MmapMut;
     use std::io::Write;
 

@@ -41,6 +41,5 @@ You need to redirect stderr to some file, otherwise the content of the file will
 
 
 ## TODO:
-* Ring bell: print!("\x07") when user tries to scroll out of the screen.
 * Implement more less's [functionalities](https://en.wikipedia.org/wiki/Less_(Unix)#Frequently_used_commands).
 * If the output is redirected to anything other than a terminal, for example a pipe to another command, less behaves like cat. 
