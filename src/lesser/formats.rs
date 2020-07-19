@@ -1,5 +1,6 @@
 #[derive(Debug)]
 pub(crate) enum Message {
+    Empty,
     ScrollDownPage,
     ScrollDown,
     ScrollUpPage,
@@ -8,6 +9,8 @@ pub(crate) enum Message {
     ScrollLeft,
     ScrollRightPage,
     ScrollRight,
+    ScrollToBeginning,
+    ScrollToEnd,
     Exit,
     Reload,
 }

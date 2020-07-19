@@ -1,5 +1,7 @@
 use crate::lesser::reader::PagedReader;
 use std::io::Result;
+use std::borrow::Borrow;
+use std::cmp::min;
 
 type PageToPrint = Option<String>;
 
@@ -89,7 +91,7 @@ impl ScreenMoveHandler {
     /// Move right one column
     pub(crate) fn move_right(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
         debug!("Received move right request");
-        // This is used to avoid going back one screen if the move_x has returnend None
+        // This is used to avoid going back one screen if the move_x has returned None
         // (e.g it hasn't read anything).
         let old_offset = self.col_offset;
         self.col_offset = (self.col_offset as i64 - (cols - 1) as i64) as u64; // - cols as i64) as u64;
@@ -109,6 +111,8 @@ impl ScreenMoveHandler {
         let (page, rows_red, _cols_red) =
             self.paged_reader
                 .read_file_paged(self.row_offset, fixed_col_offset, rows, cols)?;
+        // fix offset
+        self.row_offset = min(self.row_offset, self.paged_reader.cached_rows() as u64);
         self.row_offset += rows_red as u64;
         let ret = if rows_red > 0 { Some(page) } else { None };
         Ok(ret)
@@ -135,7 +139,7 @@ impl ScreenMoveHandler {
 
     pub(crate) fn move_down(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
         debug!("Received move up request");
-        // This is used to avoid going back one screen if the move_x has returnend None
+        // This is used to avoid going back one screen if the move_x has returned None
         // (e.g it hasn't read anything).
         let old_offset = self.row_offset;
         self.row_offset = (self.row_offset as i64 - (rows - 1) as i64) as u64; // - cols as i64) as u64;
@@ -146,5 +150,19 @@ impl ScreenMoveHandler {
             }
         });
         ret
+    }
+
+    pub(crate) fn move_to_beginning(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
+        debug!("Received move to beginning request");
+        self.row_offset = 0;
+        self.move_y(rows, cols)
+    }
+
+    pub(crate) fn move_to_end(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
+        debug!("Received move to end request");
+        // This is used to avoid going back one screen if the move_x has returnend None
+        // (e.g it hasn't read anything).
+        self.row_offset = std::u64::MAX - rows as u64;// (self.row_offset as i64 - (rows - 1) as i64) as u64; // - cols as i64) as u64;
+        self.move_y(rows, cols)
     }
 }

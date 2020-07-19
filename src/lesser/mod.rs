@@ -61,7 +61,10 @@ pub fn run(filename: Option<PathBuf>) -> std::io::Result<()> {
                 Message::ScrollRight => screen_move_handler.move_right(rows, cols)?,
                 Message::ScrollUp => screen_move_handler.move_up(rows, cols)?,
                 Message::ScrollDown => screen_move_handler.move_down(rows, cols)?,
+                Message::ScrollToBeginning => screen_move_handler.move_to_beginning(rows, cols)?,
+                Message::ScrollToEnd => screen_move_handler.move_to_end(rows, cols)?,
                 Message::Reload => screen_move_handler.reload(rows, cols)?,
+                Message::Empty => continue,
                 Message::Exit => break,
             };
             write_screen(&mut screen, page)?;
@@ -132,8 +135,16 @@ fn spawn_key_pressed_handler(sender: Sender<Message>) {
                 Key::Up => Message::ScrollUp,
                 Key::Right => Message::ScrollRight,
 
-                // Goes down by default.
-                _ => Message::ScrollDown,
+                Key::Char('g') => Message::ScrollToBeginning,
+                Key::Home => Message::ScrollToBeginning,
+                Key::Char('G') => Message::ScrollToEnd,
+                Key::End => Message::ScrollToEnd,
+
+                // Enter goes down
+                Key::Char('\n') => Message::ScrollDown,
+
+                // Not-implemented keys do nothing
+                _ => Message::Empty,
             };
             sender.send(message).unwrap();
         }
