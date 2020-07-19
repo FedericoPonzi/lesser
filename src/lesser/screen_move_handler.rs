@@ -1,6 +1,5 @@
 use crate::lesser::reader::PagedReader;
 use std::io::Result;
-use std::borrow::Borrow;
 use std::cmp::min;
 
 type PageToPrint = Option<String>;

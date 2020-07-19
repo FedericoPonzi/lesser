@@ -142,6 +142,15 @@ fn spawn_key_pressed_handler(sender: Sender<Message>) {
 
                 // Enter goes down
                 Key::Char('\n') => Message::ScrollDown,
+                Key::Char('e') => Message::ScrollDown,
+                Key::Char('j') => Message::ScrollDown,
+
+                Key::Char('y') => Message::ScrollUp,
+                Key::Char('k') => Message::ScrollUp,
+
+                Key::Char('b') => Message::ScrollUpPage,
+                Key::Char(' ') => Message::ScrollDownPage,
+                Key::Char('f') => Message::ScrollDownPage,
 
                 // Not-implemented keys do nothing
                 _ => Message::Empty,
