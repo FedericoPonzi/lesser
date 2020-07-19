@@ -19,9 +19,7 @@ mod reader;
 mod screen_move_handler;
 
 pub fn run(filename: Option<PathBuf>) -> std::io::Result<()> {
-    let screen = AlternateScreen::from(stdout())
-        .into_raw_mode()
-        .map_err(|e| Err(std::io::Error::new(ErrorKind::Other, e.Message)));
+    let screen = AlternateScreen::from(stdout()).into_raw_mode()?;
     let mut screen = termion::cursor::HideCursor::from(screen);
 
     let (sender, receiver) = crossbeam_channel::bounded(100);
