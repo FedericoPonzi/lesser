@@ -1,6 +1,6 @@
 use memmap::Mmap;
-use std::io;
 use std::cmp::{max, min};
+use std::io;
 use std::usize::MAX;
 
 type StartIndex = usize;
@@ -78,12 +78,8 @@ impl PagedReader {
         // we need to take `row` lines, starting after `row_offset` lines.
         // since row_offset get increased by row lines, but the count is 0-based, let's handle the special case when row_offset != 0:
         let to_row = match (row_offset as usize).checked_add(rows as usize) {
-            Some(v) => {
-                v
-            }
-            None => {
-                max(0, row_offset as i64 - (rows as i64)) as usize
-            }
+            Some(v) => v,
+            None => max(0, row_offset as i64 - (rows as i64)) as usize,
         };
         let file_is_all_read = self
             .rows_indexes
@@ -99,10 +95,9 @@ impl PagedReader {
             self.fetch_missing_rows_indexes(to_row);
         }
 
-        let skip_offset = match min(self.rows_indexes.len(), row_offset as usize)
-            .checked_sub(1){
+        let skip_offset = match min(self.rows_indexes.len(), row_offset as usize).checked_sub(1) {
             Some(v) => v,
-            None => 0
+            None => 0,
         };
         Ok(self
             .rows_indexes
@@ -126,9 +121,9 @@ impl PagedReader {
         // Left side, is inclusive.
         let mut last = last_found;
 
-        let limit = match missing_indexes.checked_mul(2){
+        let limit = match missing_indexes.checked_mul(2) {
             Some(v) => v,
-            None => MAX
+            None => MAX,
         };
 
         let nl = b"\n"[0];
@@ -152,7 +147,7 @@ impl PagedReader {
         self.rows_indexes.extend(res);
     }
 
-    pub fn cached_rows(&self) -> usize{
+    pub fn cached_rows(&self) -> usize {
         self.rows_indexes.len()
     }
 }

@@ -1,6 +1,6 @@
 use crate::lesser::reader::PagedReader;
-use std::io::Result;
 use std::cmp::min;
+use std::io::Result;
 
 type PageToPrint = Option<String>;
 
@@ -159,7 +159,7 @@ impl ScreenMoveHandler {
 
     pub(crate) fn move_to_end(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
         debug!("Received move to end request");
-        self.row_offset = std::u64::MAX - rows as u64;// (self.row_offset as i64 - (rows - 1) as i64) as u64; // - cols as i64) as u64;
+        self.row_offset = std::u64::MAX - rows as u64; // (self.row_offset as i64 - (rows - 1) as i64) as u64; // - cols as i64) as u64;
         self.move_y(rows, cols)
     }
 }

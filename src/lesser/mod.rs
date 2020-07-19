@@ -70,8 +70,7 @@ pub fn run(filename: Option<PathBuf>) -> std::io::Result<()> {
             write_screen(&mut screen, page)?;
         }
         Ok(())
-    }
-    else {
+    } else {
         return Err(std::io::Error::new(
             ErrorKind::Other,
             "Unable to open stdout.",
