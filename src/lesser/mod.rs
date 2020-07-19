@@ -19,61 +19,57 @@ mod reader;
 mod screen_move_handler;
 
 pub fn run(filename: Option<PathBuf>) -> std::io::Result<()> {
-    if let Ok(screen) = AlternateScreen::from(stdout()).into_raw_mode() {
-        let mut screen = termion::cursor::HideCursor::from(screen);
+    let screen = AlternateScreen::from(stdout())
+        .into_raw_mode()
+        .map_err(|e| Err(std::io::Error::new(ErrorKind::Other, e.Message)));
+    let mut screen = termion::cursor::HideCursor::from(screen);
 
-        let (sender, receiver) = crossbeam_channel::bounded(100);
-        let mmap = if let Some(filename) = filename {
-            let file_size = std::fs::metadata(&filename)?.len();
-            if file_size > 0 {
-                let file = File::open(filename)?;
-                unsafe { Mmap::map(&file).expect("failed to map the file") }
-            } else {
-                MmapMut::map_anon(1).expect("Anon mmap").make_read_only()?
-            }
-        } else if !is_tty(&stdin()) {
-            read_all_from_pipe()
+    let (sender, receiver) = crossbeam_channel::bounded(100);
+    let mmap = if let Some(filename) = filename {
+        let file_size = std::fs::metadata(&filename)?.len();
+        if file_size > 0 {
+            let file = File::open(filename)?;
+            unsafe { Mmap::map(&file).expect("failed to map the file") }
         } else {
-            // Error, must specify an input!
-            return Err(std::io::Error::new(
-                ErrorKind::InvalidInput,
-                "Missing filename (\"lesser --help\" for help)",
-            ));
-        };
-
-        let paged_reader = PagedReader::new(mmap);
-        let mut screen_move_handler: ScreenMoveHandler = ScreenMoveHandler::new(paged_reader);
-        spawn_key_pressed_handler(sender.clone());
-        spawn_signal_handler(sender);
-        let (cols, rows) = terminal_size().unwrap_or_else(|_| (80, 80));
-
-        let initial_screen = screen_move_handler.initial_screen(rows, cols)?;
-        write_screen(&mut screen, initial_screen)?;
-
-        for message in receiver {
-            let (cols, rows) = terminal_size().unwrap_or_else(|_| (80, 80));
-            let page = match message {
-                Message::ScrollUpPage => screen_move_handler.move_up_page(rows, cols)?,
-                Message::ScrollDownPage => screen_move_handler.move_down_page(rows, cols)?,
-                Message::ScrollLeft => screen_move_handler.move_left(rows, cols)?,
-                Message::ScrollRight => screen_move_handler.move_right(rows, cols)?,
-                Message::ScrollUp => screen_move_handler.move_up(rows, cols)?,
-                Message::ScrollDown => screen_move_handler.move_down(rows, cols)?,
-                Message::ScrollToBeginning => screen_move_handler.move_to_beginning(rows, cols)?,
-                Message::ScrollToEnd => screen_move_handler.move_to_end(rows, cols)?,
-                Message::Reload => screen_move_handler.reload(rows, cols)?,
-                Message::Empty => continue,
-                Message::Exit => break,
-            };
-            write_screen(&mut screen, page)?;
+            MmapMut::map_anon(1).expect("Anon mmap").make_read_only()?
         }
-        Ok(())
+    } else if !is_tty(&stdin()) {
+        read_all_from_pipe()
     } else {
+        // Error, must specify an input!
         return Err(std::io::Error::new(
-            ErrorKind::Other,
-            "Unable to open stdout.",
+            ErrorKind::InvalidInput,
+            "Missing filename (\"lesser --help\" for help)",
         ));
+    };
+
+    let paged_reader = PagedReader::new(mmap);
+    let mut screen_move_handler: ScreenMoveHandler = ScreenMoveHandler::new(paged_reader);
+    spawn_key_pressed_handler(sender.clone());
+    spawn_signal_handler(sender);
+    let (cols, rows) = terminal_size().unwrap_or_else(|_| (80, 80));
+
+    let initial_screen = screen_move_handler.initial_screen(rows, cols)?;
+    write_screen(&mut screen, initial_screen)?;
+
+    for message in receiver {
+        let (cols, rows) = terminal_size().unwrap_or_else(|_| (80, 80));
+        let page = match message {
+            Message::ScrollUpPage => screen_move_handler.move_up_page(rows, cols)?,
+            Message::ScrollDownPage => screen_move_handler.move_down_page(rows, cols)?,
+            Message::ScrollLeft => screen_move_handler.move_left(rows, cols)?,
+            Message::ScrollRight => screen_move_handler.move_right(rows, cols)?,
+            Message::ScrollUp => screen_move_handler.move_up(rows, cols)?,
+            Message::ScrollDown => screen_move_handler.move_down(rows, cols)?,
+            Message::ScrollToBeginning => screen_move_handler.move_to_beginning(rows, cols)?,
+            Message::ScrollToEnd => screen_move_handler.move_to_end(rows, cols)?,
+            Message::Reload => screen_move_handler.reload(rows, cols)?,
+            Message::Empty => continue,
+            Message::Exit => break,
+        };
+        write_screen(&mut screen, page)?;
     }
+    Ok(())
 }
 
 fn spawn_signal_handler(sender: Sender<Message>) {
