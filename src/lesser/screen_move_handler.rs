@@ -159,8 +159,6 @@ impl ScreenMoveHandler {
 
     pub(crate) fn move_to_end(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
         debug!("Received move to end request");
-        // This is used to avoid going back one screen if the move_x has returnend None
-        // (e.g it hasn't read anything).
         self.row_offset = std::u64::MAX - rows as u64;// (self.row_offset as i64 - (rows - 1) as i64) as u64; // - cols as i64) as u64;
         self.move_y(rows, cols)
     }
