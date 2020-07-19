@@ -1,5 +1,7 @@
 use memmap::Mmap;
+use std::cmp::{max, min};
 use std::io;
+use std::usize::MAX;
 
 type StartIndex = usize;
 type EndIndex = usize;
@@ -75,7 +77,10 @@ impl PagedReader {
     ) -> io::Result<Vec<(StartIndex, EndIndex)>> {
         // we need to take `row` lines, starting after `row_offset` lines.
         // since row_offset get increased by row lines, but the count is 0-based, let's handle the special case when row_offset != 0:
-        let to_row = row_offset as usize + (rows as usize);
+        let to_row = match (row_offset as usize).checked_add(rows as usize) {
+            Some(v) => v,
+            None => max(0, row_offset as i64 - (rows as i64)) as usize,
+        };
         let file_is_all_read = self
             .rows_indexes
             .last()
@@ -89,11 +94,16 @@ impl PagedReader {
         if !file_is_all_read && !indexes_are_known {
             self.fetch_missing_rows_indexes(to_row);
         }
+
+        let skip_offset = match min(self.rows_indexes.len(), row_offset as usize).checked_sub(1) {
+            Some(v) => v,
+            None => 0,
+        };
         Ok(self
             .rows_indexes
             .clone()
             .into_iter()
-            .skip(row_offset as usize)
+            .skip(skip_offset)
             .take(rows as usize)
             .collect())
     }
@@ -111,6 +121,11 @@ impl PagedReader {
         // Left side, is inclusive.
         let mut last = last_found;
 
+        let limit = match missing_indexes.checked_mul(2) {
+            Some(v) => v,
+            None => MAX,
+        };
+
         let nl = b"\n"[0];
         for (i, c) in self.mmap[last_found..] // start looking from the lastly found nl
             .iter()
@@ -121,7 +136,7 @@ impl PagedReader {
                 res.push((last, found as usize));
                 last = found + 1 as usize;
                 // If I've searched for enough indexes, let's defer the search of other nl for later
-                if res.len() > missing_indexes * 2 {
+                if res.len() >= limit {
                     break;
                 }
             // Last line. -1 because mmap is 1 even if the file is empty.
@@ -130,6 +145,10 @@ impl PagedReader {
             }
         }
         self.rows_indexes.extend(res);
+    }
+
+    pub fn cached_rows(&self) -> usize {
+        self.rows_indexes.len()
     }
 }
 

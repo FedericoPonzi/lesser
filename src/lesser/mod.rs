@@ -19,11 +19,10 @@ mod reader;
 mod screen_move_handler;
 
 pub fn run(filename: Option<PathBuf>) -> std::io::Result<()> {
-    let screen = AlternateScreen::from(stdout()).into_raw_mode().unwrap();
+    let screen = AlternateScreen::from(stdout()).into_raw_mode()?;
     let mut screen = termion::cursor::HideCursor::from(screen);
 
     let (sender, receiver) = crossbeam_channel::bounded(100);
-    //TODO: ioctl invalid if run inside intellij's run.
     let mmap = if let Some(filename) = filename {
         let file_size = std::fs::metadata(&filename)?.len();
         if file_size > 0 {
@@ -55,14 +54,15 @@ pub fn run(filename: Option<PathBuf>) -> std::io::Result<()> {
         let (cols, rows) = terminal_size().unwrap_or_else(|_| (80, 80));
         let page = match message {
             Message::ScrollUpPage => screen_move_handler.move_up_page(rows, cols)?,
-            Message::ScrollLeftPage => screen_move_handler.move_left_page(rows, cols)?,
-            Message::ScrollRightPage => screen_move_handler.move_right_page(rows, cols)?,
             Message::ScrollDownPage => screen_move_handler.move_down_page(rows, cols)?,
             Message::ScrollLeft => screen_move_handler.move_left(rows, cols)?,
             Message::ScrollRight => screen_move_handler.move_right(rows, cols)?,
             Message::ScrollUp => screen_move_handler.move_up(rows, cols)?,
             Message::ScrollDown => screen_move_handler.move_down(rows, cols)?,
+            Message::ScrollToBeginning => screen_move_handler.move_to_beginning(rows, cols)?,
+            Message::ScrollToEnd => screen_move_handler.move_to_end(rows, cols)?,
             Message::Reload => screen_move_handler.reload(rows, cols)?,
+            Message::Empty => continue,
             Message::Exit => break,
         };
         write_screen(&mut screen, page)?;
@@ -119,19 +119,32 @@ fn spawn_key_pressed_handler(sender: Sender<Message>) {
         for c in tty_input.try_clone().unwrap().keys() {
             let message = match c.expect("read keys") {
                 Key::Char('q') => Message::Exit,
-                Key::Ctrl(c) if c.to_string().as_str() == "c" => Message::Exit,
-                Key::Left => Message::ScrollLeftPage,
-                Key::Right => Message::ScrollRightPage,
-                Key::Up => Message::ScrollUpPage,
                 Key::PageUp => Message::ScrollUpPage,
                 Key::PageDown => Message::ScrollDownPage,
-                Key::Char('h') => Message::ScrollLeft,
-                Key::Char('j') => Message::ScrollDown,
-                Key::Char('k') => Message::ScrollUp,
-                Key::Char('l') => Message::ScrollRight,
+                Key::Left => Message::ScrollLeft,
+                Key::Down => Message::ScrollDown,
+                Key::Up => Message::ScrollUp,
+                Key::Right => Message::ScrollRight,
 
-                // Goes down by default.
-                _ => Message::ScrollDownPage,
+                Key::Char('g') => Message::ScrollToBeginning,
+                Key::Home => Message::ScrollToBeginning,
+                Key::Char('G') => Message::ScrollToEnd,
+                Key::End => Message::ScrollToEnd,
+
+                // Enter goes down
+                Key::Char('\n') => Message::ScrollDown,
+                Key::Char('e') => Message::ScrollDown,
+                Key::Char('j') => Message::ScrollDown,
+
+                Key::Char('y') => Message::ScrollUp,
+                Key::Char('k') => Message::ScrollUp,
+
+                Key::Char('b') => Message::ScrollUpPage,
+                Key::Char(' ') => Message::ScrollDownPage,
+                Key::Char('f') => Message::ScrollDownPage,
+
+                // Not-implemented keys do nothing
+                _ => Message::Empty,
             };
             sender.send(message).unwrap();
         }
