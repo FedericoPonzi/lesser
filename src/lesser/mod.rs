@@ -125,19 +125,15 @@ fn spawn_key_pressed_handler(sender: Sender<Message>) {
         for c in tty_input.try_clone().unwrap().keys() {
             let message = match c.expect("read keys") {
                 Key::Char('q') => Message::Exit,
-                Key::Ctrl(c) if c.to_string().as_str() == "c" => Message::Exit,
-                Key::Left => Message::ScrollLeftPage,
-                Key::Right => Message::ScrollRightPage,
-                Key::Up => Message::ScrollUpPage,
                 Key::PageUp => Message::ScrollUpPage,
                 Key::PageDown => Message::ScrollDownPage,
-                Key::Char('h') => Message::ScrollLeft,
-                Key::Char('j') => Message::ScrollDown,
-                Key::Char('k') => Message::ScrollUp,
-                Key::Char('l') => Message::ScrollRight,
+                Key::Left => Message::ScrollLeft,
+                Key::Down => Message::ScrollDown,
+                Key::Up => Message::ScrollUp,
+                Key::Right => Message::ScrollRight,
 
                 // Goes down by default.
-                _ => Message::ScrollDownPage,
+                _ => Message::ScrollDown,
             };
             sender.send(message).unwrap();
         }
