@@ -54,8 +54,6 @@ pub fn run(filename: Option<PathBuf>) -> std::io::Result<()> {
             let (cols, rows) = terminal_size().unwrap_or_else(|_| (80, 80));
             let page = match message {
                 Message::ScrollUpPage => screen_move_handler.move_up_page(rows, cols)?,
-                Message::ScrollLeftPage => screen_move_handler.move_left_page(rows, cols)?,
-                Message::ScrollRightPage => screen_move_handler.move_right_page(rows, cols)?,
                 Message::ScrollDownPage => screen_move_handler.move_down_page(rows, cols)?,
                 Message::ScrollLeft => screen_move_handler.move_left(rows, cols)?,
                 Message::ScrollRight => screen_move_handler.move_right(rows, cols)?,

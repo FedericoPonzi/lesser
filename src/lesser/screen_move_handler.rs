@@ -61,22 +61,6 @@ impl ScreenMoveHandler {
         Ok(ret)
     }
 
-    pub(crate) fn move_left_page(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
-        debug!("Received move left page request");
-        // I need to read not from the beginning of this page, but from the beginning of the last page. Thus * 2.
-        let min_col_offset = (self.col_offset as i64) - (cols as i64) * 2;
-        // we're not moving by rows:
-        self.col_offset = std::cmp::max(min_col_offset, 0) as u64;
-        self.move_x(rows, cols)
-    }
-    ///
-    /// rows, cols: size of the current terminal.
-    pub(crate) fn move_right_page(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
-        debug!("Received move right page request");
-
-        self.move_x(rows, cols)
-    }
-
     /// Move left one column
     pub(crate) fn move_left(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
         debug!("Received move right request");
