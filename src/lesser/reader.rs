@@ -50,7 +50,7 @@ impl PagedReader {
             //res.push_str(format!("start:{}, end:{}", start_row, end_row).as_ref());
             // \t takes more then one char space. Not sure what the correct behaviour should be here.
             // TODO: this should be configurable, and default to 4.
-            let as_string = String::from_utf8_lossy(row).to_string().replace("\t", " ");
+            let as_string = String::from_utf8_lossy(row); //.to_string().replace("\t", " ");
 
             has_text = has_text || !as_string.is_empty();
 

@@ -1,4 +1,5 @@
 use crate::lesser::reader::PagedReader;
+use log::debug;
 use std::cmp::min;
 use std::io::Result;
 
