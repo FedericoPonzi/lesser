@@ -1,5 +1,5 @@
 # lesser ![CI](https://github.com/FedericoPonzi/lesser/workflows/CI/badge.svg)
-A simple text reader, with lesser functionalities then less.
+A simple text reader, with less functionalities then less.
 
 ## Usage:
 Build it with:
