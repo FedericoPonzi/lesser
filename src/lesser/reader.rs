@@ -1,7 +1,6 @@
 use memmap::Mmap;
-use std::cmp::{max, min};
-use std::io;
 use std::usize::MAX;
+use std::{cmp, io};
 
 type StartIndex = usize;
 type EndIndex = usize;
@@ -36,14 +35,14 @@ impl PagedReader {
         let indexes_len = indexes.len();
         let mut res = "".to_owned();
         let mut has_text = false;
-        for (i, (start_row, end_row)) in indexes.iter().cloned().enumerate() {
-            let end = std::cmp::min(
+        for (i, (start_row, end_row)) in indexes.into_iter().enumerate() {
+            let end = cmp::min(
                 end_row,
                 start_row + column_offset as usize + columns_to_read as usize,
             )
             .to_owned();
 
-            let start = std::cmp::min(start_row + column_offset as usize, end);
+            let start = cmp::min(start_row + column_offset as usize, end);
 
             let row = &self.mmap[start..end];
 
@@ -77,10 +76,11 @@ impl PagedReader {
     ) -> io::Result<Vec<(StartIndex, EndIndex)>> {
         // we need to take `row` lines, starting after `row_offset` lines.
         // since row_offset get increased by row lines, but the count is 0-based, let's handle the special case when row_offset != 0:
-        let to_row = match (row_offset as usize).checked_add(rows as usize) {
-            Some(v) => v,
-            None => max(0, row_offset as i64 - (rows as i64)) as usize,
-        };
+        let default = cmp::max(0, row_offset as i64 - (rows as i64)) as usize;
+        let to_row = (row_offset as usize)
+            .checked_add(rows as usize)
+            .unwrap_or(default);
+
         let file_is_all_read = self
             .rows_indexes
             .last()
@@ -90,20 +90,19 @@ impl PagedReader {
             })
             .unwrap_or(false);
 
-        let indexes_are_known = to_row <= self.rows_indexes.len();
-        if !file_is_all_read && !indexes_are_known {
+        let indexes_are_known = to_row > self.rows_indexes.len();
+        if !file_is_all_read && indexes_are_known {
             self.fetch_missing_rows_indexes(to_row);
         }
 
-        let skip_offset = match min(self.rows_indexes.len(), row_offset as usize).checked_sub(1) {
-            Some(v) => v,
-            None => 0,
-        };
+        let skip_offset = cmp::min(self.rows_indexes.len(), row_offset as usize)
+            .checked_sub(1)
+            .unwrap_or(0);
         Ok(self
             .rows_indexes
-            .clone()
-            .into_iter()
+            .iter()
             .skip(skip_offset)
+            .cloned()
             .take(rows as usize)
             .collect())
     }
@@ -126,12 +125,12 @@ impl PagedReader {
             None => MAX,
         };
 
-        let nl = b"\n"[0];
+        let nl = b"\n";
         for (i, c) in self.mmap[last_found..] // start looking from the lastly found nl
             .iter()
             .enumerate()
         {
-            if *c == nl {
+            if *c == nl[0] {
                 let found = i + last_found;
                 res.push((last, found as usize));
                 last = found + 1 as usize;

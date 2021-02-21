@@ -1,6 +1,5 @@
 #[derive(Debug)]
 pub(crate) enum Message {
-    Empty,
     ScrollDownPage,
     ScrollDown,
     ScrollUpPage,

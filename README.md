@@ -32,6 +32,8 @@ You can also run it with cargo using:
 ```
 cargo run -- /path/to/filename 
 ```
+
+
 ### Development
 For enabling logging you can use the LESSER_LOG env variable, for instance:
 ```

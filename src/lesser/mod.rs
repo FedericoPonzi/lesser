@@ -2,11 +2,11 @@ use crate::lesser::formats::Message;
 use crate::lesser::reader::PagedReader;
 use crate::lesser::screen_move_handler::ScreenMoveHandler;
 use crossbeam_channel::Sender;
+use io::{stdin, stdout, ErrorKind, Stdout, Write};
 use log::debug;
 use memmap::{Mmap, MmapMut};
 use signal_hook::{iterator::Signals, SIGINT, SIGWINCH};
 use std::fs::{File, OpenOptions};
-use std::io::{stdin, stdout, ErrorKind, Stdout, Write};
 use std::path::PathBuf;
 use std::thread::JoinHandle;
 use std::{fs, io, thread};
@@ -21,7 +21,7 @@ mod formats;
 mod reader;
 mod screen_move_handler;
 
-pub fn run(filename: Option<PathBuf>) -> std::io::Result<()> {
+pub fn run(filename: Option<PathBuf>) -> io::Result<()> {
     let screen = screen::AlternateScreen::from(stdout()).into_raw_mode()?;
     let mut screen = cursor::HideCursor::from(screen);
 
@@ -37,11 +37,12 @@ pub fn run(filename: Option<PathBuf>) -> std::io::Result<()> {
     } else if !is_tty(&stdin()) {
         read_all_from_pipe()?
     } else {
-        // Error, must specify an input!
-        return Err(std::io::Error::new(
+        // exit Error, must specify an input!
+        let error = io::Error::new(
             ErrorKind::InvalidInput,
             "Missing input. Use `lesser --help` for help",
-        ));
+        );
+        return Err(error);
     };
 
     let paged_reader = PagedReader::new(mmap);
@@ -62,12 +63,12 @@ pub fn run(filename: Option<PathBuf>) -> std::io::Result<()> {
             Message::ScrollRight => screen_move_handler.move_right(rows, cols)?,
             Message::ScrollUp => screen_move_handler.move_up(rows, cols)?,
             Message::ScrollDown => screen_move_handler.move_down(rows, cols)?,
-            Message::ScrollToBeginning => screen_move_handler.move_to_beginning(rows, cols)?,
+            Message::ScrollToBeginning => screen_move_handler.move_to_top(rows, cols)?,
             Message::ScrollToEnd => screen_move_handler.move_to_end(rows, cols)?,
             Message::Reload => screen_move_handler.reload(rows, cols)?,
-            Message::Empty => continue,
             Message::Exit => break,
         };
+
         write_screen(&mut screen, page)?;
     }
     Ok(())
@@ -82,7 +83,7 @@ fn signal_handler_thread_main(sender: Sender<Message>, signals: Signals) {
         debug!("Received signal {:?}", sig);
     }
 }
-fn spawn_signal_handler(sender: Sender<Message>) -> std::io::Result<JoinHandle<()>> {
+fn spawn_signal_handler(sender: Sender<Message>) -> io::Result<JoinHandle<()>> {
     let signals = Signals::new(&[SIGWINCH, SIGINT])?;
     Ok(thread::spawn(move || {
         signal_handler_thread_main(sender, signals);
@@ -101,7 +102,7 @@ fn read_all_from_pipe() -> io::Result<Mmap> {
         .open(&path)
         .expect("Create file");
     let mut stdin = stdin();
-    std::io::copy(&mut stdin, &mut file).expect("copy pipe input");
+    io::copy(&mut stdin, &mut file).expect("copy pipe input");
     Ok(unsafe { Mmap::map(&file).expect("mmap") })
 }
 fn key_pressed_handler_thread_main(sender: Sender<Message>) {
@@ -148,7 +149,7 @@ fn spawn_key_pressed_handler(sender: Sender<Message>) {
 fn write_screen(
     screen: &mut RawTerminal<screen::AlternateScreen<Stdout>>,
     page: Option<String>,
-) -> std::io::Result<()> {
+) -> io::Result<()> {
     match page {
         Some(page) => {
             write!(screen, "{}", termion::clear::All)?;
