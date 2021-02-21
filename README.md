@@ -33,14 +33,15 @@ You can also run it with cargo using:
 cargo run -- /path/to/filename 
 ```
 ### Development
-For showing logs:
+For enabling logging you can use the LESSER_LOG env variable, for instance:
 ```
 LESSER_LOG=DEBUG cargo run -- /path/to/filename 2> /tmp/lesser.stderr
 ```
-You need to redirect stderr to some file, otherwise the content of the file will override the printed log line.
+I would suggest to redirect stderr (or stdout) to a different output, otherwise the content of the file will clash with the printed log line.
 
 
 ## TODO:
 * Ignore the new line at the end of the file (if there is any).
 * If the output is redirected to anything other than a terminal, for example a pipe to another command, less behaves like cat. 
+* Smarter Tab handling (now they're just filtered out).
 * Implement more less's [functionalities](https://en.wikipedia.org/wiki/Less_(Unix)#Frequently_used_commands).
