@@ -95,9 +95,7 @@ impl PagedReader {
             self.fetch_missing_rows_indexes(to_row);
         }
 
-        let skip_offset = cmp::min(self.rows_indexes.len(), row_offset as usize)
-            .checked_sub(1)
-            .unwrap_or(0);
+        let skip_offset = cmp::min(self.rows_indexes.len(), row_offset as usize).saturating_sub(1);
         Ok(self
             .rows_indexes
             .iter()

@@ -49,13 +49,13 @@ pub fn run(filename: Option<PathBuf>) -> io::Result<()> {
     let mut screen_move_handler: ScreenMoveHandler = ScreenMoveHandler::new(paged_reader);
     spawn_key_pressed_handler(sender.clone());
     spawn_signal_handler(sender)?;
-    let (cols, rows) = terminal_size().unwrap_or_else(|_| (80, 80));
+    let (cols, rows) = terminal_size().unwrap_or((80, 80));
 
     let initial_screen = screen_move_handler.initial_screen(rows, cols)?;
     write_screen(&mut screen, initial_screen)?;
 
     for message in receiver {
-        let (cols, rows) = terminal_size().unwrap_or_else(|_| (80, 80));
+        let (cols, rows) = terminal_size().unwrap_or((80, 80));
         let page = match message {
             Message::ScrollUpPage => screen_move_handler.move_up_page(rows, cols)?,
             Message::ScrollDownPage => screen_move_handler.move_down_page(rows, cols)?,
