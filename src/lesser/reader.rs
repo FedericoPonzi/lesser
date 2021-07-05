@@ -50,13 +50,13 @@ impl PagedReader {
             }
         }
         // If horizontal scrolling hasn't returned any char, then won't scroll.
-        let cols_red = if has_text {
+        let cols_read = if has_text {
             columns_to_read as usize
         } else {
             0
         };
-        //TODO: indexes_len = rows_red
-        Ok((res, indexes_len, cols_red))
+        //TODO: indexes_len = rows_read
+        Ok((res, indexes_len, cols_read))
     }
 
     /// find the next "rows" new lines, starting from row_offset position in self.mmap.
@@ -157,13 +157,13 @@ mod tests {
         let mmap = mmap.make_read_only().unwrap();
         let mut paged_reader = PagedReader::new(mmap);
         let expected_rows = 2;
-        let (res, rows_red, cols_red) = paged_reader
+        let (res, rows_read, cols_read) = paged_reader
             .read_file_paged(0, 0, expected_rows, 1)
             .unwrap();
         let expected = "f\n\rs";
         assert_eq!(expected, res);
-        assert_eq!(expected_rows as usize, rows_red);
-        assert_eq!(1, cols_red);
+        assert_eq!(expected_rows as usize, rows_read);
+        assert_eq!(1, cols_read);
     }
 
     #[test]
@@ -174,13 +174,13 @@ mod tests {
         let mmap = mmap.make_read_only().unwrap();
         let mut paged_reader = PagedReader::new(mmap);
         let expected_rows = 2;
-        let (res, rows_red, cols_red) = paged_reader
+        let (res, rows_read, cols_read) = paged_reader
             .read_file_paged(0, 0, expected_rows, 10)
             .unwrap();
         let expected = "firsts\n\rsecond";
         assert_eq!(expected, res);
-        assert_eq!(expected_rows as usize, rows_red);
-        assert_eq!(10, cols_red);
+        assert_eq!(expected_rows as usize, rows_read);
+        assert_eq!(10, cols_read);
     }
 
     #[test]
@@ -191,13 +191,13 @@ mod tests {
         let mmap = mmap.make_read_only().unwrap();
         let mut paged_reader = PagedReader::new(mmap);
         let expected_rows = 3;
-        let (res, rows_red, cols_red) = paged_reader
+        let (res, rows_read, cols_read) = paged_reader
             .read_file_paged(0, 0, expected_rows, 10)
             .unwrap();
         let expected = String::from_utf8_lossy(test).replace("\n", "\n\r");
         assert_eq!(expected, res);
-        assert_eq!(expected_rows as usize, rows_red);
-        assert_eq!(10, cols_red);
+        assert_eq!(expected_rows as usize, rows_read);
+        assert_eq!(10, cols_read);
     }
 
     #[test]

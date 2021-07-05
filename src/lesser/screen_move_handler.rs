@@ -23,10 +23,10 @@ impl ScreenMoveHandler {
     }
     /// The first page
     pub(crate) fn initial_screen(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
-        let (page, rows_red, cols_red) = self.paged_reader.read_file_paged(0, 0, rows, cols)?;
-        self.row_offset += rows_red as u64;
-        self.col_offset += cols_red as u64;
-        let ret = if rows_red > 0 { Some(page) } else { None };
+        let (page, rows_read, cols_read) = self.paged_reader.read_file_paged(0, 0, rows, cols)?;
+        self.row_offset += rows_read as u64;
+        self.col_offset += cols_read as u64;
+        let ret = if rows_read > 0 { Some(page) } else { None };
         Ok(ret)
     }
 
@@ -37,26 +37,26 @@ impl ScreenMoveHandler {
         // Re read this page:
         self.row_offset = self.row_offset.saturating_sub(rows as u64);
 
-        let (page, rows_red, cols_red) =
+        let (page, rows_read, cols_read) =
             self.paged_reader
                 .read_file_paged(self.row_offset, self.col_offset, rows, cols)?;
-        self.row_offset += rows_red as u64;
-        self.col_offset += cols_red as u64;
+        self.row_offset += rows_read as u64;
+        self.col_offset += cols_read as u64;
 
-        Ok(if rows_red > 0 { Some(page) } else { None })
+        Ok(if rows_read > 0 { Some(page) } else { None })
     }
 
     // X axis: read the page and moves the col offset position
-    // from self.col_offset to self.col_offset+ cols_red.
+    // from self.col_offset to self.col_offset+ cols_read.
     fn move_x(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
         // Re read the same rows
         let fixed_row_offset = self.row_offset.saturating_sub(rows as u64);
 
-        let (page, _rows_red, cols_red) =
+        let (page, _rows_read, cols_read) =
             self.paged_reader
                 .read_file_paged(fixed_row_offset, self.col_offset, rows, cols)?;
-        self.col_offset += cols_red as u64;
-        let ret = if cols_red > 0 { Some(page) } else { None };
+        self.col_offset += cols_read as u64;
+        let ret = if cols_read > 0 { Some(page) } else { None };
         Ok(ret)
     }
 
@@ -88,13 +88,13 @@ impl ScreenMoveHandler {
 
     fn move_y(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
         let fixed_col_offset = self.col_offset.saturating_sub(cols as u64);
-        let (page, rows_red, _cols_red) =
+        let (page, rows_read, _cols_read) =
             self.paged_reader
                 .read_file_paged(self.row_offset, fixed_col_offset, rows, cols)?;
         self.row_offset = cmp::min(self.row_offset, self.paged_reader.cached_rows() as u64);
-        self.row_offset += rows_red as u64;
+        self.row_offset += rows_read as u64;
 
-        Ok(if rows_red > 0 { Some(page) } else { None })
+        Ok(if rows_read > 0 { Some(page) } else { None })
     }
 
     pub(crate) fn move_down_page(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
