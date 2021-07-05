@@ -1,5 +1,4 @@
 use memmap::Mmap;
-use std::usize::MAX;
 use std::{cmp, io};
 
 type StartIndex = usize;
@@ -33,23 +32,15 @@ impl PagedReader {
     ) -> std::io::Result<(String, usize, usize)> {
         let indexes = self.get_rows_indexes(rows_to_read, row_offset)?;
         let indexes_len = indexes.len();
-        let mut res = "".to_owned();
+        let mut res = String::new();
         let mut has_text = false;
         for (i, (start_row, end_row)) in indexes.into_iter().enumerate() {
-            let end = cmp::min(
-                end_row,
-                start_row + column_offset as usize + columns_to_read as usize,
-            )
-            .to_owned();
-
-            let start = cmp::min(start_row + column_offset as usize, end);
+            let current_column = start_row + column_offset as usize;
+            let start = cmp::min(current_column, end_row);
+            let end = cmp::min(end_row, current_column + columns_to_read as usize);
 
             let row = &self.mmap[start..end];
-
-            //res.push_str(format!("start:{}, end:{}", start_row, end_row).as_ref());
-            // \t takes more then one char space. Not sure what the correct behaviour should be here.
-            // TODO: this should be configurable, and default to 4.
-            let as_string = String::from_utf8_lossy(row); //.to_string().replace("\t", " ");
+            let as_string = String::from_utf8_lossy(row);
 
             has_text = has_text || !as_string.is_empty();
 
@@ -76,10 +67,12 @@ impl PagedReader {
     ) -> io::Result<Vec<(StartIndex, EndIndex)>> {
         // we need to take `row` lines, starting after `row_offset` lines.
         // since row_offset get increased by row lines, but the count is 0-based, let's handle the special case when row_offset != 0:
-        let default = cmp::max(0, row_offset as i64 - (rows as i64)) as usize;
+
+        let default = row_offset.saturating_sub(rows as u64) as usize;
+        //let default = cmp::max(0, row_offset as i64 - (rows as i64)) as usize;
         let to_row = (row_offset as usize)
             .checked_add(rows as usize)
-            .unwrap_or(default);
+            .unwrap_or(default as usize);
 
         let file_is_all_read = self
             .rows_indexes
@@ -110,38 +103,39 @@ impl PagedReader {
             .last()
             .map(|(_start, end)| end + 1) // end is the newline char, we need to start looking after it.
             .unwrap_or(0)
-            .to_owned();
+            .clone();
 
         let missing_indexes = to_row - self.rows_indexes.len();
 
-        let mut res = vec![];
         // Left side, is inclusive.
         let mut last = last_found;
 
-        let limit = match missing_indexes.checked_mul(2) {
-            Some(v) => v,
-            None => MAX,
-        };
+        let mut limit = missing_indexes.checked_mul(2).unwrap_or(usize::MAX);
 
-        let nl = b"\n";
+        const NEW_LINE_CHAR: u8 = b'\n';
+
+        let mmap_len = self.mmap.len();
+        // -1 because mmap is 1 even if the file is empty.
+        let is_last_char = |i| i == mmap_len - 1;
+
         for (i, c) in self.mmap[last_found..] // start looking from the lastly found nl
             .iter()
             .enumerate()
         {
-            if *c == nl[0] {
+            if *c == NEW_LINE_CHAR {
                 let found = i + last_found;
-                res.push((last, found as usize));
+                self.rows_indexes.push((last, found as usize));
                 last = found + 1 as usize;
+                limit -= 1;
+
                 // If I've searched for enough indexes, let's defer the search of other nl for later
-                if res.len() >= limit {
+                if limit <= 0 {
                     break;
                 }
-            // Last line. -1 because mmap is 1 even if the file is empty.
-            } else if i == self.mmap.len() - 1 {
-                res.push((last, self.mmap.len()));
+            } else if is_last_char(i) {
+                self.rows_indexes.push((last, self.mmap.len()));
             }
         }
-        self.rows_indexes.extend(res);
     }
 
     pub fn cached_rows(&self) -> usize {

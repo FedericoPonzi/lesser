@@ -35,8 +35,7 @@ impl ScreenMoveHandler {
         // reset the index back to the start of the line:
         self.col_offset = 0;
         // Re read this page:
-        let min_row_offset = (self.row_offset as i64) - (rows as i64);
-        self.row_offset = cmp::max(min_row_offset, 0) as u64;
+        self.row_offset = self.row_offset.saturating_sub(rows as u64);
 
         let (page, rows_red, cols_red) =
             self.paged_reader
@@ -51,7 +50,7 @@ impl ScreenMoveHandler {
     // from self.col_offset to self.col_offset+ cols_red.
     fn move_x(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
         // Re read the same rows
-        let fixed_row_offset = cmp::max((self.row_offset as i64) - (rows as i64), 0) as u64;
+        let fixed_row_offset = self.row_offset.saturating_sub(rows as u64);
 
         let (page, _rows_red, cols_red) =
             self.paged_reader
@@ -63,23 +62,21 @@ impl ScreenMoveHandler {
 
     /// Move left one column
     pub(crate) fn move_left(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
-        const MOVEMENT: u16 = 10;
-
+        const MOVEMENT: u64 = 10;
         debug!("Received move right request");
-        // I need to read not from the beginning of this page, but from the beginning of the last page. Thus * 2.
-        let min_col_offset = (self.col_offset as i64) - ((cols + MOVEMENT) as i64);
+
         // we're not moving by rows:
-        self.col_offset = cmp::max(min_col_offset, 0) as u64;
+        self.col_offset = self.col_offset.saturating_sub(cols as u64 + MOVEMENT);
         self.move_x(rows, cols)
     }
 
     pub(crate) fn move_right(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
-        const MOVEMENT: u16 = 10;
+        const MOVEMENT: u64 = 10;
         debug!("Received move right request by {}", MOVEMENT);
         // This is used to avoid going back one screen if the move_x has returned None
         // (e.g it hasn't read anything).
         let old_offset = self.col_offset;
-        self.col_offset = (self.col_offset as i64 - (cols - MOVEMENT) as i64) as u64;
+        self.col_offset = self.col_offset.saturating_sub(cols as u64 - MOVEMENT);
         let ret = self.move_x(rows, cols)?;
         if ret.is_none() && old_offset != self.col_offset {
             self.col_offset = old_offset;
@@ -90,13 +87,13 @@ impl ScreenMoveHandler {
     // Y axis:
 
     fn move_y(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
-        let fixed_col_offset = cmp::max((self.col_offset as i64) - (cols as i64), 0) as u64;
+        let fixed_col_offset = self.col_offset.saturating_sub(cols as u64);
         let (page, rows_red, _cols_red) =
             self.paged_reader
                 .read_file_paged(self.row_offset, fixed_col_offset, rows, cols)?;
-        // fix offset
         self.row_offset = cmp::min(self.row_offset, self.paged_reader.cached_rows() as u64);
         self.row_offset += rows_red as u64;
+
         Ok(if rows_red > 0 { Some(page) } else { None })
     }
 
@@ -106,27 +103,26 @@ impl ScreenMoveHandler {
     }
     pub(crate) fn move_up_page(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
         debug!("Received move up request");
-
         // I need to read not from the beginning of this page, but from the beginning of the last page. Thus * 2.
-        let min_row_offset = (self.row_offset as i64) - (rows as i64) * 2;
-        self.row_offset = cmp::max(min_row_offset, 0) as u64;
+        self.row_offset = self.row_offset.saturating_sub(rows as u64 * 2);
         self.move_y(rows, cols)
     }
+
     pub(crate) fn move_up(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
         debug!("Received move up request");
-        let min_row_offset = (self.row_offset as i64) - ((rows + 1) as i64);
-        self.row_offset = cmp::max(min_row_offset, 0) as u64;
+        self.row_offset = self.row_offset.saturating_sub(rows as u64 + 1);
         self.move_y(rows, cols)
     }
 
     pub(crate) fn move_down(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
+        const MOVEMENT: u64 = 1;
         debug!("Received move up request");
         // This is used to avoid going back one screen if the move_x has returned None
         // (e.g it hasn't read anything).
         let old_offset = self.row_offset;
-        self.row_offset = (self.row_offset as i64 - (rows as i64 - 1)) as u64;
+        self.row_offset = self.row_offset.saturating_sub(rows as u64 - MOVEMENT);
         let ret = self.move_y(rows, cols)?;
-        if ret.is_none() && old_offset != self.col_offset {
+        if ret.is_none() && old_offset != self.row_offset {
             self.row_offset = old_offset;
         }
         Ok(ret)
