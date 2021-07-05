@@ -63,21 +63,23 @@ impl ScreenMoveHandler {
 
     /// Move left one column
     pub(crate) fn move_left(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
+        const MOVEMENT: u16 = 10;
+
         debug!("Received move right request");
         // I need to read not from the beginning of this page, but from the beginning of the last page. Thus * 2.
-        let min_col_offset = (self.col_offset as i64) - ((cols + 1) as i64);
+        let min_col_offset = (self.col_offset as i64) - ((cols + MOVEMENT) as i64);
         // we're not moving by rows:
         self.col_offset = cmp::max(min_col_offset, 0) as u64;
         self.move_x(rows, cols)
     }
 
-    /// Move right one column
     pub(crate) fn move_right(&mut self, rows: u16, cols: u16) -> Result<PageToPrint> {
-        debug!("Received move right request");
+        const MOVEMENT: u16 = 10;
+        debug!("Received move right request by {}", MOVEMENT);
         // This is used to avoid going back one screen if the move_x has returned None
         // (e.g it hasn't read anything).
         let old_offset = self.col_offset;
-        self.col_offset = (self.col_offset as i64 - (cols - 1) as i64) as u64;
+        self.col_offset = (self.col_offset as i64 - (cols - MOVEMENT) as i64) as u64;
         let ret = self.move_x(rows, cols)?;
         if ret.is_none() && old_offset != self.col_offset {
             self.col_offset = old_offset;
